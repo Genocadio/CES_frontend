@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MessageSquare, Megaphone, Users, Menu, X, Home, BarChart3 } from 'lucide-react';
+import { MessageSquare, Megaphone, Users, Menu, X, Home, BarChart3, Shield } from 'lucide-react';
 import { LanguageSwitcher } from './components/LanguageSwitcher';
 import { IssuesSection } from './components/IssuesSection';
 import { TopicsSection } from './components/TopicsSection';
@@ -24,6 +24,11 @@ function AppContent() {
   const [showLogin, setShowLogin] = useState(false);
   const { currentUser, isAuthenticated } = useAuth();
   const { showLoginPrompt } = useLoginPrompt();
+
+  // Handle navigation to admin
+  const handleAdminAccess = () => {
+    window.location.href = '/admin';
+  };
 
   // Show login modal when requested
   if (showLogin) {
@@ -115,8 +120,6 @@ function AppContent() {
             surveys={surveys}
             language={language}
             currentUser={currentUser}
-            isReadOnly={!isAuthenticated}
-            onLoginRequired={() => showLoginPrompt('Please log in to participate in surveys')}
             onSubmitSurvey={(surveyId, answers) => {
               if (!isAuthenticated) {
                 showLoginPrompt('Please log in to submit survey responses');
@@ -175,6 +178,17 @@ function AppContent() {
             {/* Language Switcher, User Menu/Login & Mobile Menu */}
             <div className="flex items-center space-x-4">
               <LanguageSwitcher currentLanguage={language} onLanguageChange={setLanguage} />
+              
+              {/* Admin Access Button */}
+              <button
+                onClick={handleAdminAccess}
+                className="flex items-center space-x-1 px-3 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                title="Leader Login"
+              >
+                <Shield size={16} />
+                <span className="hidden sm:inline">Admin</span>
+              </button>
+
               {isAuthenticated ? (
                 <UserMenu 
                   onProfileClick={() => setCurrentSection('profile')}

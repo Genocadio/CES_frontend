@@ -186,6 +186,49 @@ export interface ModerationAction {
   createdAt: Date;
 }
 
+// Admin/Leader specific types
+export interface Leader {
+  id: string;
+  firstName: string;
+  lastName: string;
+  name: string;
+  email: string;
+  phoneNumber: string;
+  avatar: string;
+  level: 'cell' | 'sector' | 'district';
+  location: {
+    district: string;
+    sector?: string;
+    cell?: string;
+  };
+  department: string;
+  verified: boolean;
+  joinedAt: Date;
+}
+
+export interface IssueAssignment {
+  id: string;
+  issueId: string;
+  assignedTo: string; // Leader ID
+  assignedBy: string; // Who assigned it
+  assignedAt: Date;
+  status: 'pending' | 'in_progress' | 'resolved' | 'escalated' | 'closed';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  dueDate?: Date;
+  notes?: string;
+}
+
+export interface EscalationAction {
+  id: string;
+  issueId: string;
+  fromLeader: string;
+  toLeader?: string; // null if escalating up
+  escalationType: 'up' | 'down' | 'lateral';
+  reason: string;
+  createdAt: Date;
+  status: 'pending' | 'accepted' | 'rejected';
+}
+
 export interface FileUploadConfig {
   maxSize: number; // in bytes
   allowedTypes: string[];
