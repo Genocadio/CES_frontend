@@ -231,7 +231,8 @@ const createGovernmentReply = (
   content: string,
   authorId: string,
   issueId: string,
-  responseStatus: 'final' | 'followup' = 'final'
+  responseStatus: 'final' | 'followup' = 'final',
+  replyType: 'followup' | 'progress' | 'resolve' | 'escalation' = 'progress'
 ): GovernmentReply => ({
   id,
   content,
@@ -245,6 +246,7 @@ const createGovernmentReply = (
   isOfficial: true,
   status: 'published',
   priority: ['low', 'medium', 'high'][Math.floor(Math.random() * 3)] as 'low' | 'medium' | 'high',
+  replyType,
   responseStatus,
   followUpResponse: undefined, // Will be populated separately for followup responses
 });
@@ -254,7 +256,9 @@ const govReply1 = createGovernmentReply(
   'gr1',
   'Thank you for reporting this issue. We have inspected the road conditions on KG 15 Avenue and confirm that repair work is needed. Our infrastructure team has scheduled the repairs to begin next month. We will provide regular updates on the progress.',
   '3',
-  '1'
+  '1',
+  'final',
+  'progress'
 );
 
 const govReply2 = createGovernmentReply(
@@ -262,6 +266,7 @@ const govReply2 = createGovernmentReply(
   'We need additional information about the specific locations and times when water supply is interrupted. Could you please provide more details about which areas are most affected and during which hours? This will help us prioritize our response.',
   '2',
   '2',
+  'followup',
   'followup'
 );
 
@@ -373,7 +378,9 @@ export const issues: Issue[] = [
         'gr3',
         'We are pleased to announce that funding has been approved for two new health centers in your area. Construction will begin in Q2 2024, with expected completion by end of year. In the meantime, we are arranging mobile health services to visit your community twice weekly.',
         '3',
-        '3'
+        '3',
+        'final',
+        'resolve'
       ),
     ],
     linkedIssues: [],

@@ -14,7 +14,8 @@ import {
   ThumbsDown,
   MessageSquare,
   Eye,
-  Plus
+  Plus,
+  Reply
 } from 'lucide-react';
 import { useAdminAuth } from '../contexts/AdminAuthContext';
 import { issues } from '../data/dummyData';
@@ -28,6 +29,7 @@ interface AdminIssueDetailProps {
 
 const AdminIssueDetail = ({ assignment, onBack }: AdminIssueDetailProps) => {
   const [newReply, setNewReply] = useState('');
+  const [newReplyType, setNewReplyType] = useState<'followup' | 'progress' | 'resolve' | 'escalation'>('progress');
   const [newComment, setNewComment] = useState('');
   const [newReplyComment, setNewReplyComment] = useState<{[key: string]: string}>({});
   const [isSubmittingReply, setIsSubmittingReply] = useState(false);
@@ -38,6 +40,8 @@ const AdminIssueDetail = ({ assignment, onBack }: AdminIssueDetailProps) => {
   const [selectedPriority, setSelectedPriority] = useState(assignment.priority);
   const [escalationReason, setEscalationReason] = useState('');
   const [showEscalationForm, setShowEscalationForm] = useState(false);
+  const [showIssueComments, setShowIssueComments] = useState(false);
+  const [showAddMoreResponses, setShowAddMoreResponses] = useState(false);
   const { currentLeader } = useAdminAuth();
 
   const issue = issues.find(i => i.id === assignment.issueId);
@@ -58,8 +62,22 @@ const AdminIssueDetail = ({ assignment, onBack }: AdminIssueDetailProps) => {
   
   // Check if issue has been replied to
   const hasReplies = issueReplies.length > 0;
+  
+  // Check if the last reply allows further responses (only progress and followup allow further replies)
+  const lastReply = issueReplies[issueReplies.length - 1];
+  const canAddMoreResponses = lastReply && (lastReply.replyType === 'progress' || lastReply.replyType === 'followup');
 
   const escalationTargets = currentLeader ? getEscalationTargets(currentLeader) : [];
+
+  // Helper function to check if a reply type allows comments
+  const canReplyHaveComments = (replyType: string) => {
+    return replyType === 'progress' || replyType === 'resolve';
+  };
+
+  // Helper function to check if a reply type allows further replies
+  const canReplyHaveFurtherReplies = (replyType: string) => {
+    return replyType === 'followup';
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -96,11 +114,33 @@ const AdminIssueDetail = ({ assignment, onBack }: AdminIssueDetailProps) => {
     e.preventDefault();
     if (!newReply.trim() || !currentLeader) return;
 
+    // Validate escalation type requires reason
+    if (newReplyType === 'escalation' && !escalationReason.trim()) {
+      alert('Escalation replies require a reason');
+      return;
+    }
+
     setIsSubmittingReply(true);
     try {
       // In a real app, this would make an API call
-      console.log('Submitting reply:', newReply);
+      console.log('Submitting reply:', {
+        content: newReply,
+        type: newReplyType,
+        escalationReason: newReplyType === 'escalation' ? escalationReason : undefined
+      });
+      
+      // Reset form
       setNewReply('');
+      if (newReplyType === 'escalation') {
+        setEscalationReason('');
+      }
+      // Reset the add more responses form if it was open
+      setShowAddMoreResponses(false);
+      
+      // If the reply type is resolve or escalation, no further responses are allowed
+      if (newReplyType === 'resolve' || newReplyType === 'escalation') {
+        // The form will automatically hide since canAddMoreResponses will be false
+      }
     } catch (error) {
       console.error('Error submitting reply:', error);
     } finally {
@@ -138,6 +178,17 @@ const AdminIssueDetail = ({ assignment, onBack }: AdminIssueDetailProps) => {
       console.error('Error submitting comment on reply:', error);
     } finally {
       setIsSubmittingReplyComment(prev => ({ ...prev, [replyId]: false }));
+    }
+  };
+
+  const handleReplyToComment = async (commentId: string, content: string) => {
+    if (!content.trim() || !currentLeader) return;
+
+    try {
+      // In a real app, this would make an API call
+      console.log('Submitting reply to comment:', commentId, content);
+    } catch (error) {
+      console.error('Error submitting reply to comment:', error);
     }
   };
 
@@ -264,6 +315,192 @@ const AdminIssueDetail = ({ assignment, onBack }: AdminIssueDetailProps) => {
                   <p className="text-blue-800 text-sm">{assignment.notes}</p>
                 </div>
               )}
+
+              {/* Issue Comments Section - Integrated into issue card */}
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-lg font-medium text-gray-900">
+                    Comments ({issue.comments.length})
+                  </h4>
+                  <button
+                    onClick={() => setShowIssueComments(!showIssueComments)}
+                    className="flex items-center space-x-2 px-3 py-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors text-sm"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    <span>{showIssueComments ? 'Hide' : 'Show'} Comments</span>
+                  </button>
+                </div>
+
+                {showIssueComments && (
+                  <div className="space-y-4">
+                    {/* Add Comment Form */}
+                    <div className="mb-6">
+                      <textarea
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        placeholder="Add an official comment"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        rows={3}
+                      />
+                      <div className="flex justify-end mt-2">
+                        <button
+                          onClick={handleCommentSubmit}
+                          disabled={!newComment.trim() || isSubmittingComment}
+                          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Send className="w-4 h-4 mr-2" />
+                          {isSubmittingComment ? 'Submitting...' : 'Post Comment'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Comments List */}
+                    <div className="space-y-4">
+                      {issue.comments.map((comment) => (
+                        <div key={comment.id} className="border-l-4 border-gray-200 pl-4 py-2">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <img
+                              src={comment.author.avatar}
+                              alt={comment.author.name}
+                              className="w-6 h-6 rounded-full"
+                            />
+                            <span className="font-medium text-sm">{comment.author.name}</span>
+                            {comment.author.isGovernment && (
+                              <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                Official
+                              </span>
+                            )}
+                            <span className="text-xs text-gray-500">
+                              {new Date(comment.createdAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-700 mb-2">{comment.content}</p>
+                          
+                          {/* Comment Actions */}
+                          <div className="flex items-center space-x-3 text-xs text-gray-500">
+                            <div className="flex items-center space-x-1">
+                              <ThumbsUp className="w-3 h-3" />
+                              <span>{comment.votes.filter(v => v.type === 'up').length}</span>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                              <ThumbsDown className="w-3 h-3" />
+                              <span>{comment.votes.filter(v => v.type === 'down').length}</span>
+                            </div>
+                            {comment.replies.length > 0 && (
+                              <span>{comment.replies.length} replies</span>
+                            )}
+                            <button
+                              onClick={() => setShowCommentForm(prev => ({ ...prev, [`reply_${comment.id}`]: !prev[`reply_${comment.id}`] }))}
+                              className="flex items-center space-x-1 text-blue-600 hover:text-blue-800"
+                            >
+                              <Reply className="w-3 h-3" />
+                              <span>Reply</span>
+                            </button>
+                          </div>
+
+                          {/* Reply Form */}
+                          {showCommentForm[`reply_${comment.id}`] && (
+                            <div className="mt-3 ml-4 space-y-2">
+                              <textarea
+                                value={newReplyComment[`reply_${comment.id}`] || ''}
+                                onChange={(e) => setNewReplyComment(prev => ({ ...prev, [`reply_${comment.id}`]: e.target.value }))}
+                                placeholder="Add an official comment"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                rows={2}
+                              />
+                              <div className="flex justify-end space-x-2">
+                                <button
+                                  onClick={() => setShowCommentForm(prev => ({ ...prev, [`reply_${comment.id}`]: false }))}
+                                  className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  onClick={() => handleReplyToComment(comment.id, newReplyComment[`reply_${comment.id}`] || '')}
+                                  disabled={!newReplyComment[`reply_${comment.id}`]?.trim()}
+                                  className="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50"
+                                >
+                                  Post Comment
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Comment Replies */}
+                          {comment.replies.length > 0 && (
+                            <div className="ml-6 mt-3 space-y-2">
+                              {comment.replies.map((reply) => (
+                                <div key={reply.id} className="bg-gray-50 p-3 rounded-md">
+                                  <div className="flex items-center space-x-2 mb-1">
+                                    <img
+                                      src={reply.author.avatar}
+                                      alt={reply.author.name}
+                                      className="w-5 h-5 rounded-full"
+                                    />
+                                    <span className="text-sm font-medium">{reply.author.name}</span>
+                                    {reply.author.isGovernment && (
+                                      <span className="px-1.5 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                        Official
+                                      </span>
+                                    )}
+                                    <span className="text-xs text-gray-500">
+                                      {new Date(reply.createdAt).toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                  <p className="text-sm text-gray-700 mb-2">{reply.content}</p>
+                                  
+                                  {/* Reply Actions */}
+                                  <div className="flex items-center space-x-3 text-xs text-gray-500">
+                                    <button
+                                      onClick={() => setShowCommentForm(prev => ({ ...prev, [`reply_comment_reply_${reply.id}`]: !prev[`reply_comment_reply_${reply.id}`] }))}
+                                      className="flex items-center space-x-1 text-blue-600 hover:text-blue-800"
+                                    >
+                                      <Reply className="w-3 h-3" />
+                                      <span>Reply</span>
+                                    </button>
+                                  </div>
+
+                                  {/* Reply to Comment Reply Form */}
+                                  {showCommentForm[`reply_comment_reply_${reply.id}`] && (
+                                    <div className="mt-3 ml-4 space-y-2">
+                                      <textarea
+                                        value={newReplyComment[`reply_comment_reply_${reply.id}`] || ''}
+                                        onChange={(e) => setNewReplyComment(prev => ({ ...prev, [`reply_comment_reply_${reply.id}`]: e.target.value }))}
+                                        placeholder="Add an official comment"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        rows={2}
+                                      />
+                                      <div className="flex justify-end space-x-2">
+                                        <button
+                                          onClick={() => setShowCommentForm(prev => ({ ...prev, [`reply_comment_reply_${reply.id}`]: false }))}
+                                          className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800"
+                                        >
+                                          Cancel
+                                        </button>
+                                        <button
+                                          onClick={() => handleReplyToComment(reply.id, newReplyComment[`reply_comment_reply_${reply.id}`] || '')}
+                                          disabled={!newReplyComment[`reply_comment_reply_${reply.id}`]?.trim()}
+                                          className="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50"
+                                        >
+                                          Post Comment
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                      
+                      {issue.comments.length === 0 && (
+                        <p className="text-gray-500 text-sm">No comments yet.</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -295,6 +532,16 @@ const AdminIssueDetail = ({ assignment, onBack }: AdminIssueDetailProps) => {
                         <div className="flex items-center space-x-2">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(reply.priority)}`}>
                             {reply.priority}
+                          </span>
+                          {/* Reply Type Badge */}
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            reply.replyType === 'followup' ? 'bg-orange-100 text-orange-800' :
+                            reply.replyType === 'progress' ? 'bg-blue-100 text-blue-800' :
+                            reply.replyType === 'resolve' ? 'bg-green-100 text-green-800' :
+                            reply.replyType === 'escalation' ? 'bg-red-100 text-red-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {reply.replyType?.replace('_', ' ')}
                           </span>
                           {reply.responseStatus === 'followup' && (
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
@@ -339,83 +586,142 @@ const AdminIssueDetail = ({ assignment, onBack }: AdminIssueDetailProps) => {
                         </div>
                       </div>
 
-                      {/* Reply Comments */}
-                      {reply.comments && reply.comments.length > 0 && (
+                      {/* Reply Comments - Only show for progress and resolve types */}
+                      {canReplyHaveComments(reply.replyType) && reply.comments && reply.comments.length > 0 && (
                         <div className="mt-4 pl-4 border-l-2 border-gray-100">
-                          <h6 className="text-sm font-medium text-gray-700 mb-3">Comments on this reply</h6>
-                          <div className="space-y-3">
-                            {reply.comments.map((comment) => (
-                              <div key={comment.id} className="bg-gray-50 p-3 rounded-md">
-                                <div className="flex items-center space-x-2 mb-1">
-                                  <img
-                                    src={comment.author.avatar}
-                                    alt={comment.author.name}
-                                    className="w-5 h-5 rounded-full"
-                                  />
-                                  <span className="text-sm font-medium">{comment.author.name}</span>
-                                  {comment.author.isGovernment && (
-                                    <span className="px-1.5 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full">
-                                      Official
-                                    </span>
-                                  )}
-                                  <span className="text-xs text-gray-500">
-                                    {new Date(comment.createdAt).toLocaleDateString()}
-                                  </span>
-                                </div>
-                                <p className="text-sm text-gray-700 mb-2">{comment.content}</p>
-                                <div className="flex items-center space-x-3 text-xs text-gray-500">
-                                  <div className="flex items-center space-x-1">
-                                    <ThumbsUp className="w-3 h-3" />
-                                    <span>{comment.votes.filter(v => v.type === 'up').length}</span>
-                                  </div>
-                                  <div className="flex items-center space-x-1">
-                                    <ThumbsDown className="w-3 h-3" />
-                                    <span>{comment.votes.filter(v => v.type === 'down').length}</span>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
+                          <div className="flex items-center justify-between mb-3">
+                            <h6 className="text-sm font-medium text-gray-700">Comments on this reply</h6>
+                            <button
+                              onClick={() => setShowCommentForm(prev => ({ ...prev, [`comments_${reply.id}`]: !prev[`comments_${reply.id}`] }))}
+                              className="text-blue-600 hover:text-blue-800 text-xs font-medium"
+                            >
+                              <MessageSquare className="w-3 h-3 inline mr-1" />
+                              {showCommentForm[`comments_${reply.id}`] ? 'Hide' : 'Show'} Comments
+                            </button>
                           </div>
+                          {showCommentForm[`comments_${reply.id}`] && (
+                            <div className="space-y-3">
+                              {reply.comments.map((comment) => (
+                                <div key={comment.id} className="bg-gray-50 p-3 rounded-md">
+                                  <div className="flex items-center space-x-2 mb-1">
+                                    <img
+                                      src={comment.author.avatar}
+                                      alt={comment.author.name}
+                                      className="w-5 h-5 rounded-full"
+                                    />
+                                    <span className="text-sm font-medium">{comment.author.name}</span>
+                                    {comment.author.isGovernment && (
+                                      <span className="px-1.5 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                        Official
+                                      </span>
+                                    )}
+                                    <span className="text-xs text-gray-500">
+                                      {new Date(comment.createdAt).toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                  <p className="text-sm text-gray-700 mb-2">{comment.content}</p>
+                                  <div className="flex items-center space-x-3 text-xs text-gray-500">
+                                    <div className="flex items-center space-x-1">
+                                      <ThumbsUp className="w-3 h-3" />
+                                      <span>{comment.votes.filter(v => v.type === 'up').length}</span>
+                                    </div>
+                                    <div className="flex items-center space-x-1">
+                                      <ThumbsDown className="w-3 h-3" />
+                                      <span>{comment.votes.filter(v => v.type === 'down').length}</span>
+                                    </div>
+                                    <button
+                                      onClick={() => setShowCommentForm(prev => ({ ...prev, [`reply_reply_${comment.id}`]: !prev[`reply_reply_${comment.id}`] }))}
+                                      className="flex items-center space-x-1 text-blue-600 hover:text-blue-800"
+                                    >
+                                      <Reply className="w-3 h-3" />
+                                      <span>Reply</span>
+                                    </button>
+                                  </div>
+
+                                  {/* Reply to Reply Form */}
+                                  {showCommentForm[`reply_reply_${comment.id}`] && (
+                                    <div className="mt-3 ml-4 space-y-2">
+                                      <textarea
+                                        value={newReplyComment[`reply_reply_${comment.id}`] || ''}
+                                        onChange={(e) => setNewReplyComment(prev => ({ ...prev, [`reply_reply_${comment.id}`]: e.target.value }))}
+                                        placeholder="Add an official comment"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        rows={2}
+                                      />
+                                      <div className="flex justify-end space-x-2">
+                                        <button
+                                          onClick={() => setShowCommentForm(prev => ({ ...prev, [`reply_reply_${comment.id}`]: false }))}
+                                          className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800"
+                                        >
+                                          Cancel
+                                        </button>
+                                        <button
+                                          onClick={() => handleReplyToComment(comment.id, newReplyComment[`reply_reply_${comment.id}`] || '')}
+                                          disabled={!newReplyComment[`reply_reply_${comment.id}`]?.trim()}
+                                          className="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50"
+                                        >
+                                          Post Comment
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
 
-                      {/* Add comment to reply */}
-                      <div className="mt-4">
-                        {!showCommentForm[reply.id] ? (
-                          <button
-                            onClick={() => setShowCommentForm(prev => ({ ...prev, [reply.id]: true }))}
-                            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                          >
-                            <MessageSquare className="w-4 h-4 inline mr-1" />
-                            Comment on this reply
-                          </button>
-                        ) : (
-                          <div className="space-y-2">
-                            <textarea
-                              value={newReplyComment[reply.id] || ''}
-                              onChange={(e) => setNewReplyComment(prev => ({ ...prev, [reply.id]: e.target.value }))}
-                              placeholder="Add a comment to this reply..."
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                              rows={2}
-                            />
-                            <div className="flex justify-end space-x-2">
-                              <button
-                                onClick={() => setShowCommentForm(prev => ({ ...prev, [reply.id]: false }))}
-                                className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800"
-                              >
-                                Cancel
-                              </button>
-                              <button
-                                onClick={() => handleReplyCommentSubmit(reply.id)}
-                                disabled={!newReplyComment[reply.id]?.trim() || isSubmittingReplyComment[reply.id]}
-                                className="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50"
-                              >
-                                {isSubmittingReplyComment[reply.id] ? 'Submitting...' : 'Comment'}
-                              </button>
-                            </div>
-                          </div>
-                        )}
+                      {/* Reply Type Rules Info */}
+                      <div className="mt-3 p-3 bg-gray-50 rounded-md border-l-4 border-gray-300">
+                        <div className="text-xs text-gray-600">
+                          <strong>Reply Type:</strong> {reply.replyType?.replace('_', ' ')}
+                          {reply.replyType === 'progress' && ' - Comments allowed, further replies allowed'}
+                          {reply.replyType === 'followup' && ' - No comments, citizen responses allowed'}
+                          {reply.replyType === 'resolve' && ' - Comments allowed, no further replies'}
+                          {reply.replyType === 'escalation' && ' - No comments, no further replies'}
+                        </div>
                       </div>
+
+                      {/* Add comment to reply - Only show for progress and resolve types */}
+                      {canReplyHaveComments(reply.replyType) && (
+                        <div className="mt-4">
+                          {!showCommentForm[reply.id] ? (
+                            <button
+                              onClick={() => setShowCommentForm(prev => ({ ...prev, [reply.id]: true }))}
+                              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                            >
+                              <MessageSquare className="w-4 h-4 inline mr-1" />
+                              Comment on this reply
+                            </button>
+                          ) : (
+                            <div className="space-y-2">
+                              <textarea
+                                value={newReplyComment[reply.id] || ''}
+                                onChange={(e) => setNewReplyComment(prev => ({ ...prev, [reply.id]: e.target.value }))}
+                                placeholder="Add an official comment"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                rows={2}
+                              />
+                              <div className="flex justify-end space-x-2">
+                                <button
+                                  onClick={() => setShowCommentForm(prev => ({ ...prev, [reply.id]: false }))}
+                                  className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  onClick={() => handleReplyCommentSubmit(reply.id)}
+                                  disabled={!newReplyComment[reply.id]?.trim() || isSubmittingReplyComment[reply.id]}
+                                  className="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50"
+                                >
+                                  {isSubmittingReplyComment[reply.id] ? 'Submitting...' : 'Post Comment'}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       {/* Follow-up Response */}
                       {reply.followUpResponse && (
@@ -462,7 +768,57 @@ const AdminIssueDetail = ({ assignment, onBack }: AdminIssueDetailProps) => {
                 // Show reply button if issue is unresolved (no replies)
                 <div>
                   <h3 className="text-lg font-medium text-gray-900 mb-4">Reply to Issue</h3>
+                  <div className="mb-4 p-4 bg-blue-50 rounded-lg">
+                    <h4 className="text-sm font-medium text-blue-900 mb-2">Reply Type Rules:</h4>
+                    <ul className="text-xs text-blue-800 space-y-1">
+                      <li><strong>Progress:</strong> Can be commented on, allows further replies</li>
+                      <li><strong>Follow-up:</strong> Cannot be commented on, allows citizen responses</li>
+                      <li><strong>Resolve:</strong> Can be commented on, no further replies</li>
+                      <li><strong>Escalation:</strong> Requires reason, no further replies</li>
+                    </ul>
+                  </div>
                   <form onSubmit={handleReplySubmit}>
+                    {/* Reply Type Selection */}
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Reply Type *
+                      </label>
+                      <select
+                        value={newReplyType}
+                        onChange={(e) => setNewReplyType(e.target.value as typeof newReplyType)}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        required
+                      >
+                        <option value="progress">Progress Update</option>
+                        <option value="followup">Follow-up Request</option>
+                        <option value="resolve">Resolution</option>
+                        <option value="escalation">Escalation</option>
+                      </select>
+                      <div className="mt-1 text-xs text-gray-500">
+                        {newReplyType === 'progress' && 'Progress updates can be commented on and allow further replies'}
+                        {newReplyType === 'followup' && 'Follow-up requests cannot be commented on but allow citizen responses'}
+                        {newReplyType === 'resolve' && 'Resolutions can be commented on but no further replies allowed'}
+                        {newReplyType === 'escalation' && 'Escalations require a reason and no further replies allowed'}
+                      </div>
+                    </div>
+
+                    {/* Escalation Reason Field */}
+                    {newReplyType === 'escalation' && (
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Escalation Reason *
+                        </label>
+                        <textarea
+                          value={escalationReason}
+                          onChange={(e) => setEscalationReason(e.target.value)}
+                          placeholder="Explain why this issue needs to be escalated..."
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          rows={3}
+                          required
+                        />
+                      </div>
+                    )}
+
                     <textarea
                       value={newReply}
                       onChange={(e) => setNewReply(e.target.value)}
@@ -474,7 +830,7 @@ const AdminIssueDetail = ({ assignment, onBack }: AdminIssueDetailProps) => {
                     <div className="flex justify-end mt-2">
                       <button
                         type="submit"
-                        disabled={!newReply.trim() || isSubmittingReply}
+                        disabled={!newReply.trim() || (newReplyType === 'escalation' && !escalationReason.trim()) || isSubmittingReply}
                         className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Send className="w-4 h-4 mr-2" />
@@ -484,133 +840,124 @@ const AdminIssueDetail = ({ assignment, onBack }: AdminIssueDetailProps) => {
                   </form>
                 </div>
               ) : (
-                // Show add more responses if already replied
+                // Show add more responses button if already replied and previous response allows it
                 <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Add More Responses</h3>
-                  <form onSubmit={handleReplySubmit}>
-                    <textarea
-                      value={newReply}
-                      onChange={(e) => setNewReply(e.target.value)}
-                      placeholder="Add an additional response to this issue..."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      rows={4}
-                    />
-                    <div className="flex justify-end mt-2">
-                      <button
-                        type="submit"
-                        disabled={!newReply.trim() || isSubmittingReply}
-                        className="flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        {isSubmittingReply ? 'Submitting...' : 'Add Response'}
-                      </button>
+                  {canAddMoreResponses ? (
+                    <>
+                      {!showAddMoreResponses ? (
+                        <div className="text-center">
+                          <button
+                            onClick={() => setShowAddMoreResponses(true)}
+                            className="flex items-center mx-auto px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                          >
+                            <Plus className="w-5 h-5 mr-2" />
+                            Add More Responses
+                          </button>
+                          <p className="text-sm text-gray-600 mt-2">
+                            Previous response was a {lastReply.replyType === 'progress' ? 'Progress Update' : 'Follow-up Request'} - you can add more responses
+                          </p>
+                        </div>
+                      ) : (
+                        <div>
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-medium text-gray-900">Add More Responses</h3>
+                            <button
+                              onClick={() => setShowAddMoreResponses(false)}
+                              className="text-gray-500 hover:text-gray-700 text-sm"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                          <div className="mb-4 p-4 bg-green-50 rounded-lg">
+                            <h4 className="text-sm font-medium text-green-900 mb-2">Reply Type Rules:</h4>
+                            <ul className="text-xs text-green-800 space-y-1">
+                              <li><strong>Progress:</strong> Can be commented on, allows further replies</li>
+                              <li><strong>Follow-up:</strong> Cannot be commented on, allows citizen responses</li>
+                              <li><strong>Resolve:</strong> Can be commented on, no further replies</li>
+                              <li><strong>Escalation:</strong> Requires reason, no further replies</li>
+                            </ul>
+                          </div>
+                          <form onSubmit={handleReplySubmit}>
+                            {/* Reply Type Selection */}
+                            <div className="mb-4">
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Reply Type *
+                              </label>
+                              <select
+                                value={newReplyType}
+                                onChange={(e) => setNewReplyType(e.target.value as typeof newReplyType)}
+                                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                required
+                              >
+                                <option value="progress">Progress Update</option>
+                                <option value="followup">Follow-up Request</option>
+                                <option value="resolve">Resolution</option>
+                                <option value="escalation">Escalation</option>
+                              </select>
+                              <div className="mt-1 text-xs text-gray-500">
+                                {newReplyType === 'progress' && 'Progress updates can be commented on and allow further replies'}
+                                {newReplyType === 'followup' && 'Follow-up requests cannot be commented on but allow citizen responses'}
+                                {newReplyType === 'resolve' && 'Resolutions can be commented on but no further replies allowed'}
+                                {newReplyType === 'escalation' && 'Escalations require a reason and no further replies allowed'}
+                              </div>
+                            </div>
+
+                            {/* Escalation Reason Field */}
+                            {newReplyType === 'escalation' && (
+                              <div className="mb-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  Escalation Reason *
+                                </label>
+                                <textarea
+                                  value={escalationReason}
+                                  onChange={(e) => setEscalationReason(e.target.value)}
+                                  placeholder="Explain why this issue needs to be escalated..."
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                  rows={3}
+                                  required
+                                />
+                              </div>
+                            )}
+
+                            <textarea
+                              value={newReply}
+                              onChange={(e) => setNewReply(e.target.value)}
+                              placeholder="Add an additional response to this issue..."
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              rows={4}
+                            />
+                            <div className="flex justify-end mt-2">
+                              <button
+                                type="submit"
+                                disabled={!newReply.trim() || (newReplyType === 'escalation' && !escalationReason.trim()) || isSubmittingReply}
+                                className="flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <Plus className="w-4 h-4 mr-2" />
+                                {isSubmittingReply ? 'Submitting...' : 'Add Response'}
+                              </button>
+                            </div>
+                          </form>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="text-center py-6">
+                      <div className="text-gray-500">
+                        <p className="text-sm">
+                          {lastReply ? 
+                            `Previous response was a ${lastReply.replyType === 'resolve' ? 'Resolution' : 'Escalation'} - no further responses allowed` :
+                            'No further responses allowed'
+                          }
+                        </p>
+                      </div>
                     </div>
-                  </form>
+                  )}
                 </div>
               )}
             </div>
           </div>
 
-          {/* Comments Section */}
-          <div className="bg-white rounded-lg shadow">
-            <div className="p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Comments ({issue.comments.length})
-              </h3>
-              
-              {/* Add Comment Form */}
-              <div className="mb-6">
-                <textarea
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  placeholder="Add an official response or comment..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  rows={3}
-                />
-                <div className="flex justify-end mt-2">
-                  <button
-                    onClick={handleCommentSubmit}
-                    disabled={!newComment.trim() || isSubmittingComment}
-                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Send className="w-4 h-4 mr-2" />
-                    {isSubmittingComment ? 'Submitting...' : 'Post Official Response'}
-                  </button>
-                </div>
-              </div>
-
-              {/* Comments List */}
-              <div className="space-y-4">
-                {issue.comments.map((comment) => (
-                  <div key={comment.id} className="border-l-4 border-gray-200 pl-4 py-2">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <img
-                        src={comment.author.avatar}
-                        alt={comment.author.name}
-                        className="w-6 h-6 rounded-full"
-                      />
-                      <span className="font-medium text-sm">{comment.author.name}</span>
-                      {comment.author.isGovernment && (
-                        <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full">
-                          Official
-                        </span>
-                      )}
-                      <span className="text-xs text-gray-500">
-                        {new Date(comment.createdAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-700 mb-2">{comment.content}</p>
-                    
-                    {/* Comment Votes - Leaders can see but not vote */}
-                    <div className="flex items-center space-x-3 text-xs text-gray-500">
-                      <div className="flex items-center space-x-1">
-                        <ThumbsUp className="w-3 h-3" />
-                        <span>{comment.votes.filter(v => v.type === 'up').length}</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <ThumbsDown className="w-3 h-3" />
-                        <span>{comment.votes.filter(v => v.type === 'down').length}</span>
-                      </div>
-                      {comment.replies.length > 0 && (
-                        <span>{comment.replies.length} replies</span>
-                      )}
-                    </div>
-
-                    {/* Comment Replies */}
-                    {comment.replies.length > 0 && (
-                      <div className="ml-6 mt-3 space-y-2">
-                        {comment.replies.map((reply) => (
-                          <div key={reply.id} className="bg-gray-50 p-3 rounded-md">
-                            <div className="flex items-center space-x-2 mb-1">
-                              <img
-                                src={reply.author.avatar}
-                                alt={reply.author.name}
-                                className="w-5 h-5 rounded-full"
-                              />
-                              <span className="text-sm font-medium">{reply.author.name}</span>
-                              {reply.author.isGovernment && (
-                                <span className="px-1.5 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full">
-                                  Official
-                                </span>
-                              )}
-                              <span className="text-xs text-gray-500">
-                                {new Date(reply.createdAt).toLocaleDateString()}
-                              </span>
-                            </div>
-                            <p className="text-sm text-gray-700">{reply.content}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-                
-                {issue.comments.length === 0 && (
-                  <p className="text-gray-500 text-sm">No comments yet.</p>
-                )}
-              </div>
-            </div>
-          </div>
+          {/* Comments Section - Remove this section since comments are now in the issue card */}
         </div>
 
         {/* Sidebar */}

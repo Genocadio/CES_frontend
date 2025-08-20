@@ -70,8 +70,11 @@ export interface GovernmentReply {
   isOfficial: boolean;
   status: 'draft' | 'published' | 'archived';
   priority: 'low' | 'medium' | 'high' | 'urgent';
+  replyType: 'followup' | 'progress' | 'resolve' | 'escalation'; // New reply type system
   responseStatus: 'final' | 'followup'; // Internal status - not visible to public
   followUpResponse?: UserFollowUpResponse; // Response from issue creator if responseStatus is 'followup'
+  escalationReason?: string; // For escalation type replies
+  escalationTarget?: string; // ID of the leader/level this is escalated to
 }
 
 // New interface for user follow-up responses to government inquiries

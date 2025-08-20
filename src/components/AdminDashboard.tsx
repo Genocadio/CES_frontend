@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   FileText, 
   TrendingUp, 
@@ -6,19 +6,42 @@ import {
   CheckCircle, 
   AlertCircle,
   MessageSquare,
+  Megaphone,
   User,
-  LogOut
+  LogOut,
+  BarChart3,
+  MessageCircle,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { useAdminAuth } from '../contexts/AdminAuthContext';
-import { getIssuesForLeader } from '../data/adminData';
-import { issues } from '../data/dummyData';
+import { getIssuesForLeader, getAnnouncementsForLeader, getTopicStatsForLeader } from '../data/adminData';
+import { issues, announcements, topics } from '../data/dummyData';
 import AdminIssuesList from './AdminIssuesList';
+import AdminAnnouncementsList from './AdminAnnouncementsList';
+import AdminSurveysList from './AdminSurveysList';
+import AdminTopicsList from './AdminTopicsList';
 
-type AdminSection = 'dashboard' | 'issues' | 'profile';
+type AdminSection = 'dashboard' | 'issues' | 'announcements' | 'surveys' | 'topics' | 'profile';
 
 const AdminDashboard = () => {
   const [currentSection, setCurrentSection] = useState<AdminSection>('dashboard');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const { currentLeader, logout } = useAdminAuth();
+
+  // Keyboard shortcut for toggling sidebar (Ctrl/Cmd + B)
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'b') {
+        event.preventDefault();
+        setSidebarCollapsed(!sidebarCollapsed);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [sidebarCollapsed]);
 
   if (!currentLeader) {
     return null;
@@ -28,6 +51,17 @@ const AdminDashboard = () => {
   const pendingIssues = assignedIssues.filter(a => a.status === 'pending');
   const inProgressIssues = assignedIssues.filter(a => a.status === 'in_progress');
   const resolvedIssues = assignedIssues.filter(a => a.status === 'resolved');
+  
+  // Get announcements for current leader's region
+  const leaderAnnouncements = getAnnouncementsForLeader(currentLeader, announcements);
+  
+  const urgentAnnouncements = leaderAnnouncements.filter(a => a.priority === 'urgent');
+  const expiringAnnouncements = leaderAnnouncements.filter(a => 
+    a.expiresAt && new Date(a.expiresAt) < new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+  );
+  
+  // Get topic statistics for current leader's region
+  const topicStats = getTopicStatsForLeader(currentLeader, topics);
 
   const stats = [
     {
@@ -45,18 +79,18 @@ const AdminDashboard = () => {
       change: '-1 from yesterday'
     },
     {
-      title: 'In Progress',
-      value: inProgressIssues.length,
-      icon: AlertCircle,
-      color: 'orange',
-      change: '+1 this week'
+      title: 'Community Topics',
+      value: topicStats.totalTopics,
+      icon: MessageCircle,
+      color: 'green',
+      change: `${topicStats.activeDiscussions} active`
     },
     {
-      title: 'Resolved',
-      value: resolvedIssues.length,
-      icon: CheckCircle,
-      color: 'green',
-      change: '+3 this month'
+      title: 'Urgent Announcements',
+      value: urgentAnnouncements.length,
+      icon: Megaphone,
+      color: 'red',
+      change: `${urgentAnnouncements.length > 0 ? '!' : '0'} active`
     }
   ];
 
@@ -74,6 +108,12 @@ const AdminDashboard = () => {
     switch (currentSection) {
       case 'issues':
         return <AdminIssuesList />;
+      case 'announcements':
+        return <AdminAnnouncementsList currentLeader={currentLeader} />;
+      case 'surveys':
+        return <AdminSurveysList currentLeader={currentLeader} />;
+      case 'topics':
+        return <AdminTopicsList currentLeader={currentLeader} />;
       case 'profile':
         return (
           <div className="bg-white rounded-lg shadow p-6">
@@ -175,14 +215,14 @@ const AdminDashboard = () => {
                   const issue = issues.find(i => i.id === assignment.issueId);
                   if (!issue) return null;
 
-                  const priorityColors = {
+                  const priorityColors: Record<string, string> = {
                     low: 'bg-gray-100 text-gray-800',
                     medium: 'bg-blue-100 text-blue-800',
                     high: 'bg-orange-100 text-orange-800',
                     urgent: 'bg-red-100 text-red-800'
                   };
 
-                  const statusColors = {
+                  const statusColors: Record<string, string> = {
                     pending: 'bg-yellow-100 text-yellow-800',
                     in_progress: 'bg-blue-100 text-blue-800',
                     resolved: 'bg-green-100 text-green-800',
@@ -201,10 +241,10 @@ const AdminDashboard = () => {
                             {issue.content.substring(0, 100)}...
                           </p>
                           <div className="flex items-center space-x-2 mt-2">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[assignment.status]}`}>
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[assignment.status] || 'bg-gray-100 text-gray-800'}`}>
                               {assignment.status.replace('_', ' ')}
                             </span>
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${priorityColors[assignment.priority]}`}>
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${priorityColors[assignment.priority] || 'bg-gray-100 text-gray-800'}`}>
                               {assignment.priority}
                             </span>
                             {assignment.dueDate && (
@@ -230,6 +270,114 @@ const AdminDashboard = () => {
                 )}
               </div>
             </div>
+
+            {/* Recent Announcements */}
+            <div className="bg-white rounded-lg shadow">
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-gray-900">Recent Announcements</h2>
+                  <button
+                    onClick={() => setCurrentSection('announcements')}
+                    className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                  >
+                    View All
+                  </button>
+                </div>
+              </div>
+              <div className="divide-y divide-gray-200">
+                {leaderAnnouncements.slice(0, 3).map((announcement) => {
+                  const priorityColors: Record<string, string> = {
+                    normal: 'bg-blue-100 text-blue-800',
+                    important: 'bg-orange-100 text-orange-800',
+                    urgent: 'bg-red-100 text-red-800'
+                  };
+
+                  return (
+                    <div key={announcement.id} className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <h3 className="text-sm font-medium text-gray-900">
+                            {announcement.title}
+                          </h3>
+                          <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                            {announcement.content.substring(0, 100)}...
+                          </p>
+                          <div className="flex items-center space-x-2 mt-2">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${priorityColors[announcement.priority] || 'bg-gray-100 text-gray-800'}`}>
+                              {announcement.priority}
+                            </span>
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                              {announcement.category}
+                            </span>
+                            {announcement.expiresAt && (
+                              <span className="text-xs text-gray-500">
+                                Expires: {new Date(announcement.expiresAt).toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm text-gray-500">
+                            {new Date(announcement.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {leaderAnnouncements.length === 0 && (
+                  <div className="p-6 text-center text-gray-500">
+                    No announcements available.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Recent Topics */}
+            <div className="bg-white rounded-lg shadow">
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-gray-900">Recent Community Topics</h2>
+                  <button
+                    onClick={() => setCurrentSection('topics')}
+                    className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                  >
+                    View All
+                  </button>
+                </div>
+              </div>
+              <div className="divide-y divide-gray-200">
+                {topics.slice(0, 3).map((topic) => (
+                  <div key={topic.id} className="p-4 hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => setCurrentSection('topics')}>
+                    <div className="flex items-start space-x-3">
+                      <img
+                        src={topic.author.avatar}
+                        alt={topic.author.name}
+                        className="w-8 h-8 rounded-full flex-shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-gray-900 line-clamp-2 mb-2">{topic.content}</p>
+                        <div className="flex items-center space-x-4 text-xs text-gray-500">
+                          <span>by {topic.author.name}</span>
+                          <span>{topic.replies.length} replies</span>
+                          <span>{topic.votes.length} votes</span>
+                          {topic.regionalRestriction && (
+                            <span className="text-blue-600">
+                              {topic.regionalRestriction.level}: {topic.regionalRestriction.district}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {topics.length === 0 && (
+                  <div className="p-6 text-center text-gray-500">
+                    No topics available yet.
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         );
     }
@@ -238,93 +386,167 @@ const AdminDashboard = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
-      <div className="w-64 bg-white shadow-lg">
-        <div className="p-6">
+      <div className={`${sidebarCollapsed ? 'w-16' : 'w-64'} bg-white shadow-lg transition-all duration-300 ease-in-out fixed h-full z-10`}>
+        <div className={`${sidebarCollapsed ? 'p-3' : 'p-6'} relative`}>
           <div className="flex items-center space-x-3">
-            <div className="bg-blue-600 text-white p-2 rounded-lg">
-              <FileText size={20} />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-gray-900">Admin Portal</h1>
-              <p className="text-xs text-gray-600">Leader Dashboard</p>
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="bg-blue-600 text-white p-2 rounded-lg flex-shrink-0 hover:bg-blue-700 transition-colors cursor-pointer"
+              title={sidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+            >
+              {sidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+            </button>
+            <div className={`${sidebarCollapsed ? 'w-0 overflow-hidden' : 'w-auto'} transition-all duration-300 ease-in-out`}>
+              <h1 className="text-lg font-bold text-gray-900 whitespace-nowrap">Admin Portal</h1>
+              <p className="text-xs text-gray-600 whitespace-nowrap">Leader Dashboard</p>
             </div>
           </div>
         </div>
 
-        <nav className="mt-6 px-3">
+        <nav className={`mt-6 ${sidebarCollapsed ? 'px-2' : 'px-3'}`}>
           <div className="space-y-1">
             <button
               onClick={() => setCurrentSection('dashboard')}
-              className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md ${
+              className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-2 py-3' : 'px-3 py-2'} text-sm font-medium rounded-md ${
                 currentSection === 'dashboard'
                   ? 'bg-blue-100 text-blue-700'
                   : 'text-gray-700 hover:bg-gray-100'
               }`}
+              title={sidebarCollapsed ? 'Dashboard' : ''}
             >
-              <TrendingUp className="mr-3 h-4 w-4" />
-              Dashboard
+              <TrendingUp className={`${sidebarCollapsed ? 'h-5 w-5' : 'mr-3 h-4 w-4'}`} />
+              {!sidebarCollapsed && 'Dashboard'}
             </button>
             <button
               onClick={() => setCurrentSection('issues')}
-              className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md ${
+              className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-2 py-3' : 'px-3 py-2'} text-sm font-medium rounded-md ${
                 currentSection === 'issues'
                   ? 'bg-blue-100 text-blue-700'
                   : 'text-gray-700 hover:bg-gray-100'
               }`}
+              title={sidebarCollapsed ? 'Issues' : ''}
             >
-              <MessageSquare className="mr-3 h-4 w-4" />
-              Issues
-              {assignedIssues.length > 0 && (
+              <MessageSquare className={`${sidebarCollapsed ? 'h-5 w-5' : 'mr-3 h-4 w-4'}`} />
+              {!sidebarCollapsed && 'Issues'}
+              {!sidebarCollapsed && assignedIssues.length > 0 && (
                 <span className="ml-auto bg-blue-100 text-blue-600 text-xs px-2 py-0.5 rounded-full">
                   {assignedIssues.length}
                 </span>
               )}
             </button>
             <button
-              onClick={() => setCurrentSection('profile')}
-              className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md ${
-                currentSection === 'profile'
+              onClick={() => setCurrentSection('announcements')}
+              className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-2 py-3' : 'px-3 py-2'} text-sm font-medium rounded-md ${
+                currentSection === 'announcements'
                   ? 'bg-blue-100 text-blue-700'
                   : 'text-gray-700 hover:bg-gray-100'
               }`}
+              title={sidebarCollapsed ? 'Announcements' : ''}
             >
-              <User className="mr-3 h-4 w-4" />
-              Profile
+              <Megaphone className={`${sidebarCollapsed ? 'h-5 w-5' : 'mr-3 h-4 w-4'}`} />
+              {!sidebarCollapsed && 'Announcements'}
+            </button>
+            <button
+              onClick={() => setCurrentSection('surveys')}
+              className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-2 py-3' : 'px-3 py-2'} text-sm font-medium rounded-md ${
+                currentSection === 'surveys'
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+              title={sidebarCollapsed ? 'Surveys' : ''}
+            >
+              <BarChart3 className={`${sidebarCollapsed ? 'h-5 w-5' : 'mr-3 h-4 w-4'}`} />
+              {!sidebarCollapsed && 'Surveys'}
+            </button>
+            <button
+              onClick={() => setCurrentSection('topics')}
+              className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-2 py-3' : 'px-3 py-2'} text-sm font-medium rounded-md ${
+                currentSection === 'topics'
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+              title={sidebarCollapsed ? 'Topics' : ''}
+            >
+              <MessageCircle className={`${sidebarCollapsed ? 'h-5 w-5' : 'mr-3 h-4 w-4'}`} />
+              {!sidebarCollapsed && 'Topics'}
+              {!sidebarCollapsed && topicStats.totalTopics > 0 && (
+                <span className="ml-auto bg-green-100 text-green-600 text-xs px-2 py-0.5 rounded-full">
+                  {topicStats.totalTopics}
+                </span>
+              )}
             </button>
           </div>
         </nav>
 
-        {/* User Info & Logout */}
-        <div className="absolute bottom-0 w-64 p-4 border-t border-gray-200 bg-white">
-          <div className="flex items-center space-x-3 mb-3">
+        {/* User Info */}
+        <div className={`absolute bottom-0 ${sidebarCollapsed ? 'w-16' : 'w-64'} ${sidebarCollapsed ? 'p-2' : 'p-4'} border-t border-gray-200 bg-white transition-all duration-300 ease-in-out`}>
+          <button
+            onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+            className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center' : 'space-x-3'} mb-3 hover:bg-gray-50 rounded-lg transition-colors ${sidebarCollapsed ? 'p-1' : 'p-2'} h-auto`}
+          >
             <img
               src={currentLeader.avatar}
               alt={currentLeader.name}
-              className="w-8 h-8 rounded-full"
+              className="w-8 h-8 rounded-full flex-shrink-0 object-cover"
             />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">
-                {currentLeader.firstName}
-              </p>
-              <p className="text-xs text-gray-500 truncate">
-                {currentLeader.level} Leader
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={logout}
-            className="w-full flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
-          >
-            <LogOut className="mr-3 h-4 w-4" />
-            Sign Out
+            {!sidebarCollapsed && (
+              <div className="flex-1 min-w-0 text-left">
+                <p className="text-sm font-medium text-gray-900 truncate">
+                  {currentLeader.firstName}
+                </p>
+                <p className="text-xs text-gray-500 truncate">
+                  {currentLeader.level} Leader
+                </p>
+              </div>
+            )}
           </button>
+          
+          {/* Profile Dropdown */}
+          {showProfileDropdown && (
+            <div className={`${sidebarCollapsed ? 'w-16' : 'w-64'} bg-white border border-gray-200 rounded-lg shadow-lg absolute bottom-full mb-2 left-0 z-20`}>
+              <div className="py-1">
+                <button
+                  onClick={() => {
+                    setCurrentSection('profile');
+                    setShowProfileDropdown(false);
+                  }}
+                  className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left"
+                >
+                  <User className="mr-3 h-4 w-4" />
+                  Profile
+                </button>
+                <button
+                  onClick={() => {
+                    logout();
+                    setShowProfileDropdown(false);
+                  }}
+                  className="w-full flex items-center px-3 py-2 text-sm text-red-600 hover:bg-red-50 text-left"
+                >
+                  <LogOut className="mr-3 h-4 w-4" />
+                  Sign Out
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 p-8">
-        {renderContent()}
+      <div className={`flex-1 transition-all duration-300 ease-in-out ${sidebarCollapsed ? 'ml-16' : 'ml-64'}`}>
+        <div className="p-8">
+          {renderContent()}
+        </div>
       </div>
+
+
+
+      {/* Click outside to close profile dropdown */}
+      {showProfileDropdown && (
+        <div 
+          className="fixed inset-0 z-10" 
+          onClick={() => setShowProfileDropdown(false)}
+        />
+      )}
     </div>
   );
 };

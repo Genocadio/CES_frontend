@@ -7,8 +7,9 @@ import {
   MessageSquare, 
   Calendar,
   MapPin,
-  Eye,
-  MoreHorizontal
+  MoreHorizontal,
+  ThumbsUp,
+  ThumbsDown
 } from 'lucide-react';
 import { useAdminAuth } from '../contexts/AdminAuthContext';
 import { getIssuesForLeader } from '../data/adminData';
@@ -67,6 +68,13 @@ const AdminIssuesList = () => {
       case 'urgent': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  // Helper function to count votes
+  const getVoteCounts = (votes: any[]) => {
+    const upvotes = votes.filter(vote => vote.type === 'up').length;
+    const downvotes = votes.filter(vote => vote.type === 'down').length;
+    return { upvotes, downvotes };
   };
 
   const handleUpdateStatus = (assignmentId: string, newStatus: string) => {
@@ -153,9 +161,14 @@ const AdminIssuesList = () => {
             if (!issue) return null;
 
             const StatusIcon = getStatusIcon(assignment.status);
+            const { upvotes, downvotes } = getVoteCounts(issue.votes);
 
             return (
-              <div key={assignment.id} className="p-6 hover:bg-gray-50 transition-colors">
+              <div 
+                key={assignment.id} 
+                className="p-6 hover:bg-gray-50 transition-colors cursor-pointer"
+                onClick={() => setSelectedIssue(assignment.id)}
+              >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-2">
@@ -194,6 +207,17 @@ const AdminIssuesList = () => {
                         <MessageSquare className="w-4 h-4" />
                         <span>{issue.comments.length} comments</span>
                       </div>
+                      {/* Vote counts */}
+                      <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-1 text-green-600">
+                          <ThumbsUp className="w-4 h-4" />
+                          <span>{upvotes}</span>
+                        </div>
+                        <div className="flex items-center space-x-1 text-red-600">
+                          <ThumbsDown className="w-4 h-4" />
+                          <span>{downvotes}</span>
+                        </div>
+                      </div>
                     </div>
 
                     {assignment.notes && (
@@ -205,18 +229,14 @@ const AdminIssuesList = () => {
                     )}
                   </div>
 
-                  {/* Actions */}
+                  {/* Actions - only the more actions button, no eye icon */}
                   <div className="flex items-center space-x-2 ml-4">
-                    <button
-                      onClick={() => setSelectedIssue(assignment.id)}
-                      className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-md"
-                      title="View Details"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
                     <div className="relative">
                       <button
-                        onClick={() => setShowActions(showActions === assignment.id ? null : assignment.id)}
+                        onClick={(e) => {
+                          e.stopPropagation(); // Prevent card click when clicking actions
+                          setShowActions(showActions === assignment.id ? null : assignment.id);
+                        }}
                         className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-md"
                         title="More Actions"
                       >
@@ -232,7 +252,10 @@ const AdminIssuesList = () => {
                             {['pending', 'in_progress', 'resolved'].map((status) => (
                               <button
                                 key={status}
-                                onClick={() => handleUpdateStatus(assignment.id, status)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleUpdateStatus(assignment.id, status);
+                                }}
                                 className="block w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                               >
                                 {status.replace('_', ' ')}
@@ -246,7 +269,10 @@ const AdminIssuesList = () => {
                               {['low', 'medium', 'high', 'urgent'].map((priority) => (
                                 <button
                                   key={priority}
-                                  onClick={() => handleUpdatePriority(assignment.id, priority)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleUpdatePriority(assignment.id, priority);
+                                  }}
                                   className="block w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                                 >
                                   {priority}
@@ -256,7 +282,10 @@ const AdminIssuesList = () => {
 
                             <div className="border-t border-gray-100 mt-1">
                               <button
-                                onClick={() => handleEscalate(assignment.id, null)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEscalate(assignment.id, null);
+                                }}
                                 className="block w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
                               >
                                 Escalate to Higher Level

@@ -1,4 +1,4 @@
-import { Leader, IssueAssignment, EscalationAction } from '../types';
+import { Leader, IssueAssignment, EscalationAction, Survey } from '../types';
 
 export const leaders: Leader[] = [
   {
@@ -206,4 +206,284 @@ export const getEscalationTargets = (fromLeader: Leader): Leader[] => {
     // District leaders can't escalate higher in this system
     return false;
   });
+};
+
+// Helper function to get announcements for a specific leader's region
+export const getAnnouncementsForLeader = (leader: Leader, allAnnouncements: any[]): any[] => {
+  return allAnnouncements.filter(announcement => {
+    // If announcement has no regional focus, show to all leaders
+    if (!announcement.targetAudience || announcement.targetAudience.length === 0) {
+      return true;
+    }
+    
+    // Check for regional focus announcements
+    const regionalAnnouncements = announcement.targetAudience.filter((audience: string) => 
+      audience.startsWith('regional_')
+    );
+    
+    if (regionalAnnouncements.length > 0) {
+      // Check if the leader can see this regional announcement
+      return regionalAnnouncements.some((regional: string) => {
+        const parts = regional.split('_');
+        if (parts.length < 3) return false;
+        
+        const level = parts[1];
+        const scope = parts[2]; // default, all_sectors, all_cells, or specific_cell
+        const district = parts[3];
+        const sector = parts[4];
+        const cell = parts[5];
+        
+        // District level leaders can see all regional announcements in their district
+        if (leader.level === 'district') {
+          return district === leader.location.district;
+        }
+        
+        // Sector level leaders can see sector-wide and cell-specific announcements in their sector
+        if (leader.level === 'sector') {
+          if (district !== leader.location.district) return false;
+          if (sector !== leader.location.sector) return false;
+          
+          if (level === 'sector') {
+            // Can see sector-wide announcements (all cells in their sector)
+            return scope === 'default' || scope === 'all_cells';
+          } else if (level === 'cell') {
+            // Can see cell-specific announcements in their sector
+            return true;
+          }
+          return false;
+        }
+        
+        // Cell level leaders can only see cell-specific announcements in their cell
+        if (leader.level === 'cell') {
+          if (district !== leader.location.district) return false;
+          if (sector !== leader.location.sector) return false;
+          if (level === 'cell' && cell === leader.location.cell) {
+            return scope === 'default' || scope === 'specific_cell';
+          }
+          return false;
+        }
+        
+        return false;
+      });
+    }
+    
+    // Check if announcement targets the leader's region (legacy support)
+    const hasRegionalFocus = announcement.targetAudience.some((audience: string) => 
+      audience === leader.location.district ||
+      audience === leader.location.sector ||
+      audience === leader.location.cell
+    );
+    
+    return hasRegionalFocus;
+  });
+};
+
+// Helper function to check if a leader can create announcements for a specific region
+export const canCreateAnnouncementForRegion = (leader: Leader, targetLevel: string, targetDistrict: string, targetSector?: string, targetCell?: string): boolean => {
+  // District leaders can create announcements for any level in their district
+  if (leader.level === 'district') {
+    return targetDistrict === leader.location.district;
+  }
+  
+  // Sector leaders can create sector-wide (all cells) or cell-specific announcements in their sector
+  if (leader.level === 'sector') {
+    if (targetDistrict !== leader.location.district) return false;
+    if (targetLevel === 'district') return false; // Can't target district-wide
+    if (targetLevel === 'sector') return targetSector === leader.location.sector;
+    if (targetLevel === 'cell') return targetSector === leader.location.sector;
+    return false;
+  }
+  
+  // Cell leaders can only create cell-specific announcements in their cell
+  if (leader.level === 'cell') {
+    if (targetDistrict !== leader.location.district) return false;
+    if (targetSector !== leader.location.sector) return false;
+    if (targetLevel === 'cell') return targetCell === leader.location.cell;
+    return false; // Can't target sector or district-wide
+  }
+  
+  return false;
+};
+
+// Helper function to get surveys for a specific leader's region
+export const getSurveysForLeader = (leader: Leader, allSurveys: Survey[]): Survey[] => {
+  return allSurveys.filter(survey => {
+    // If survey has no regional focus, show to all leaders
+    if (!survey.targetAudience || survey.targetAudience.length === 0) {
+      return true;
+    }
+    
+    // Check for regional focus surveys
+    const regionalSurveys = survey.targetAudience.filter(audience => 
+      audience.startsWith('regional_')
+    );
+    
+    if (regionalSurveys.length > 0) {
+      // Check if the leader can see this regional survey
+      return regionalSurveys.some(regional => {
+        const parts = regional.split('_');
+        if (parts.length < 3) return false;
+        
+        const level = parts[1];
+        const scope = parts[2]; // default, all_sectors, all_cells, or specific_cell
+        const district = parts[3];
+        const sector = parts[4];
+        const cell = parts[5];
+        
+        // District level leaders can see all regional surveys in their district
+        if (leader.level === 'district') {
+          return district === leader.location.district;
+        }
+        
+        // Sector level leaders can see sector-wide and cell-specific surveys in their sector
+        if (leader.level === 'sector') {
+          if (district !== leader.location.district) return false;
+          if (sector !== leader.location.sector) return false;
+          
+          if (level === 'sector') {
+            // Can see sector-wide surveys (all cells in their sector)
+            return scope === 'default' || scope === 'all_cells';
+          } else if (level === 'cell') {
+            // Can see cell-specific surveys in their sector
+            return true;
+          }
+          return false;
+        }
+        
+        // Cell level leaders can only see cell-specific surveys in their cell
+        if (leader.level === 'cell') {
+          if (district !== leader.location.district) return false;
+          if (sector !== leader.location.sector) return false;
+          if (level === 'cell' && cell === leader.location.cell) {
+            return scope === 'default' || scope === 'specific_cell';
+          }
+          return false;
+        }
+        
+        return false;
+      });
+    }
+    
+    // Check if survey targets the leader's region (legacy support)
+    const hasRegionalFocus = survey.targetAudience.some(audience => 
+      audience === leader.location.district ||
+      audience === leader.location.sector ||
+      audience === leader.location.cell
+    );
+    
+    return hasRegionalFocus;
+  });
+};
+
+// Helper function to check if a leader can create surveys for a specific region
+export const canCreateSurveyForRegion = (leader: Leader, targetLevel: string, targetDistrict: string, targetSector?: string, targetCell?: string): boolean => {
+  // District leaders can create surveys for any level in their district
+  if (leader.level === 'district') {
+    return targetDistrict === leader.location.district;
+  }
+  
+  // Sector leaders can create sector-wide (all cells) or cell-specific surveys in their sector
+  if (leader.level === 'sector') {
+    if (targetDistrict !== leader.location.district) return false;
+    if (targetLevel === 'district') return false; // Can't target district-wide
+    if (targetLevel === 'sector') return targetSector === leader.location.sector;
+    if (targetLevel === 'cell') return targetSector === leader.location.sector;
+    return false;
+  }
+  
+  // Cell leaders can only create cell-specific surveys in their cell
+  if (leader.level === 'cell') {
+    if (targetDistrict !== leader.location.district) return false;
+    if (targetSector !== leader.location.sector) return false;
+    if (targetLevel === 'cell') return targetCell === leader.location.cell;
+    return false; // Can't target sector or district-wide
+  }
+  
+  return false;
+};
+
+// Topic-related functions for leaders
+import { Topic } from '../types';
+
+// Get topics that are relevant to a leader based on their level and location
+export const getTopicsForLeader = (leader: Leader, allTopics: Topic[]): Topic[] => {
+  return allTopics.filter(topic => {
+    // If topic has no regional restriction, show to all leaders
+    if (!topic.regionalRestriction) {
+      return true;
+    }
+    
+    const { level, district, sector, cell } = topic.regionalRestriction;
+    const leaderLocation = leader.location;
+    
+    switch (level) {
+      case 'district':
+        return leaderLocation.district === district;
+      case 'sector':
+        return leaderLocation.district === district && leaderLocation.sector === sector;
+      case 'cell':
+        return leaderLocation.district === district && 
+               leaderLocation.sector === sector && 
+               leaderLocation.cell === cell;
+      default:
+        return true;
+    }
+  });
+};
+
+// Get topics created by a specific leader
+export const getTopicsByLeader = (leaderId: string, allTopics: Topic[]): Topic[] => {
+  return allTopics.filter(topic => topic.author.id === leaderId);
+};
+
+// Get trending topics for a leader's region
+export const getTrendingTopicsForLeader = (leader: Leader, allTopics: Topic[]): Topic[] => {
+  const relevantTopics = getTopicsForLeader(leader, allTopics);
+  return relevantTopics.filter(topic => 
+    topic.votes.length > 10 || topic.replies.length > 5
+  ).sort((a, b) => 
+    (b.votes.length + b.replies.length) - (a.votes.length + a.replies.length)
+  );
+};
+
+// Check if a leader can create topics for a specific region
+export const canCreateTopicForRegion = (leader: Leader, targetLevel: string, targetDistrict: string, targetSector?: string, targetCell?: string): boolean => {
+  // District leaders can create topics for any level in their district
+  if (leader.level === 'district') {
+    return targetDistrict === leader.location.district;
+  }
+  
+  // Sector leaders can create sector-wide or cell-specific topics in their sector
+  if (leader.level === 'sector') {
+    if (targetDistrict !== leader.location.district) return false;
+    if (targetLevel === 'district') return false; // Can't target district-wide
+    if (targetLevel === 'sector') return targetSector === leader.location.sector;
+    if (targetLevel === 'cell') return targetSector === leader.location.sector;
+    return false;
+  }
+  
+  // Cell leaders can only create cell-specific topics in their cell
+  if (leader.level === 'cell') {
+    if (targetDistrict !== leader.location.district) return false;
+    if (targetSector !== leader.location.sector) return false;
+    if (targetLevel === 'cell') return targetCell === leader.location.cell;
+    return false; // Can't target sector or district-wide
+  }
+  
+  return false;
+};
+
+// Get topic statistics for a leader's region
+export const getTopicStatsForLeader = (leader: Leader, allTopics: Topic[]) => {
+  const relevantTopics = getTopicsForLeader(leader, allTopics);
+  const leaderTopics = getTopicsByLeader(leader.id, allTopics);
+  
+  return {
+    totalTopics: relevantTopics.length,
+    leaderTopics: leaderTopics.length,
+    activeDiscussions: relevantTopics.filter(t => t.replies.length > 5).length,
+    totalReplies: relevantTopics.reduce((sum, t) => sum + t.replies.length, 0),
+    totalVotes: relevantTopics.reduce((sum, t) => sum + t.votes.length, 0),
+    trendingTopics: getTrendingTopicsForLeader(leader, allTopics).length
+  };
 };
