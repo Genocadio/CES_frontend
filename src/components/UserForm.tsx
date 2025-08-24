@@ -30,6 +30,7 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSave, onCancel, isEditing =
   const [errors, setFormErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [isSuccess, setIsSuccess] = useState(false);
 
   const rwandanDistricts = [
     'Gasabo', 'Kicukiro', 'Nyarugenge', 'Bugesera', 'Gatsibo',
@@ -59,8 +60,6 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSave, onCancel, isEditing =
 
     if (!formData.phoneNumber.trim()) {
       newErrors.phoneNumber = 'Phone number is required';
-    } else if (!/^\+250\d{9}$/.test(formData.phoneNumber)) {
-      newErrors.phoneNumber = 'Please enter a valid Rwandan phone number (+250XXXXXXXXX)';
     }
 
     if (!formData.location.district) {
@@ -97,7 +96,7 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSave, onCancel, isEditing =
       // Prepare profile completion data
       const profileData = {
         profileUrl: hasValidProfileImage() ? formData.profileImage : undefined,
-        level: 'CELL' as any, // Temporary fix - citizens shouldn't need level
+        level: null, // Citizens don't have administrative levels
         location: {
           district: formData.location.district,
           sector: formData.location.sector,
@@ -110,6 +109,8 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSave, onCancel, isEditing =
       const success = await completeProfile(profileData);
       
       if (success) {
+        // Show success state
+        setIsSuccess(true);
         // Call the original onSave with the updated data
         const userData = {
           ...formData,
@@ -164,6 +165,31 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSave, onCancel, isEditing =
   const hasValidProfileImage = () => {
     return formData.profileImage && formData.profileImage.trim() !== '';
   };
+
+  // Show success state
+  if (isSuccess) {
+    return (
+      <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-6">
+        <div className="text-center py-12">
+          <div className="w-16 h-16 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center">
+            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Profile Updated Successfully!</h2>
+          <p className="text-gray-600 mb-6">
+            Your profile has been updated successfully. The changes will be reflected immediately.
+          </p>
+          <button
+            onClick={() => setIsSuccess(false)}
+            className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Continue Editing
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-6">
@@ -244,7 +270,7 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSave, onCancel, isEditing =
                 className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
                   errors.phoneNumber ? 'border-red-500' : 'border-gray-300'
                 }`}
-                placeholder="+250788123456"
+                placeholder="Enter your phone number"
               />
               {errors.phoneNumber && <p className="text-red-500 text-xs mt-1">{errors.phoneNumber}</p>}
             </div>

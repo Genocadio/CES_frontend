@@ -399,8 +399,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         // Transform UserResponseDto to User interface
         const updatedUser: User = {
-          ...updatedUserData,
+          id: updatedUserData.id.toString(),
+          firstName: updatedUserData.firstName,
+          lastName: updatedUserData.lastName,
           name: `${updatedUserData.firstName} ${updatedUserData.lastName}`,
+          email: updatedUserData.email,
+          phoneNumber: updatedUserData.phoneNumber,
+          profileUrl: updatedUserData.profileUrl,
+          role: {
+            id: updatedUserData.role,
+            name: updatedUserData.role,
+            description: 'User role'
+          },
           location: updatedUserData.location ? {
             district: updatedUserData.location.district,
             sector: updatedUserData.location.sector || '',

@@ -84,7 +84,7 @@ export interface RegisterRequestDto {
 // Profile completion types
 export interface UserProfileCompletionRequestDto {
   profileUrl?: string;
-  level: Level;
+  level?: Level | null;
   location: LocationRequestDto;
 }
 

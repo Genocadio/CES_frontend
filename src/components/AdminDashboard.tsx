@@ -154,18 +154,7 @@ const AdminDashboard = () => {
                   <label className="block text-sm font-medium text-gray-700">Department</label>
                   <p className="mt-1 text-sm text-gray-900">{currentLeader.department}</p>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Verification Status</label>
-                  <div className="mt-1 flex items-center">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      currentLeader.verified 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {currentLeader.verified ? 'Verified' : 'Pending Verification'}
-                    </span>
-                  </div>
-                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Member Since</label>
                   <p className="mt-1 text-sm text-gray-900">
