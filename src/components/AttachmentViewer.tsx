@@ -1,201 +1,367 @@
 import React, { useState } from 'react';
-import { Download, Eye, Play, FileText, Image, Music } from 'lucide-react';
-import { Attachment } from '../types';
+import { Download, Play, Pause, Volume2, VolumeX, Maximize2, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { AttachmentResponseDto, AttachmentType } from '../types';
 
 interface AttachmentViewerProps {
-  attachments: Attachment[];
-  compact?: boolean;
+  attachments: AttachmentResponseDto[];
+  className?: string;
+  showDownloadButton?: boolean;
+  maxPreviewSize?: 'sm' | 'md' | 'lg';
 }
 
-const AttachmentViewer: React.FC<AttachmentViewerProps> = ({ attachments, compact = false }) => {
-  const [selectedAttachment, setSelectedAttachment] = useState<Attachment | null>(null);
+export const AttachmentViewer: React.FC<AttachmentViewerProps> = ({
+  attachments,
+  className = '',
+  showDownloadButton = true,
+  maxPreviewSize = 'md'
+}) => {
+  const [selectedAttachment, setSelectedAttachment] = useState<AttachmentResponseDto | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [videoStates, setVideoStates] = useState<{ [key: string]: { playing: boolean; muted: boolean } }>({});
 
-  const getIcon = (type: string) => {
-    switch (type) {
-      case 'image':
-        return <Image size={16} />;
-      case 'video':
-        return <Play size={16} />;
-      case 'audio':
-        return <Music size={16} />;
-      case 'pdf':
-      case 'document':
-        return <FileText size={16} />;
+  if (!attachments || attachments.length === 0) {
+    return null;
+  }
+
+  const getSizeClasses = () => {
+    switch (maxPreviewSize) {
+      case 'sm':
+        return 'max-w-xs max-h-48';
+      case 'lg':
+        return 'max-w-2xl max-h-96';
       default:
-        return <FileText size={16} />;
+        return 'max-w-lg max-h-64';
     }
   };
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  const isMediaFile = (attachment: AttachmentResponseDto) => {
+    return attachment.type === AttachmentType.PHOTO || attachment.type === AttachmentType.VIDEO;
   };
 
-  const isViewable = (type: string) => {
-    return ['image', 'video'].includes(type);
+  const isAudioFile = (attachment: AttachmentResponseDto) => {
+    return attachment.type === AttachmentType.AUDIO;
   };
 
-  if (compact) {
-    return (
-      <div className="flex flex-wrap gap-2">
-        {attachments.map((attachment) => (
-          <div
-            key={attachment.id}
-            className="flex items-center space-x-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 hover:bg-gray-100 transition-colors"
-          >
-            {getIcon(attachment.type)}
-            <span className="text-sm font-medium text-gray-700 truncate max-w-32">
-              {attachment.name}
-            </span>
-            <div className="flex items-center space-x-1">
-              {isViewable(attachment.type) && (
-                <button
-                  onClick={() => setSelectedAttachment(attachment)}
-                  className="p-1 text-blue-600 hover:bg-blue-50 rounded"
-                  title="View"
-                >
-                  <Eye size={14} />
-                </button>
-              )}
-              <button
-                onClick={() => window.open(attachment.url, '_blank')}
-                className="p-1 text-gray-600 hover:bg-gray-50 rounded"
-                title="Download"
-              >
-                <Download size={14} />
-              </button>
-            </div>
+  const isDownloadableFile = (attachment: AttachmentResponseDto) => {
+    return attachment.type === AttachmentType.PDF;
+  };
+
+  const openFullscreen = (attachment: AttachmentResponseDto, index: number) => {
+    setSelectedAttachment(attachment);
+    setCurrentIndex(index);
+    setIsFullscreen(true);
+  };
+
+  const closeFullscreen = () => {
+    setIsFullscreen(false);
+    setSelectedAttachment(null);
+  };
+
+  const navigateAttachment = (direction: 'prev' | 'next') => {
+    if (direction === 'prev') {
+      const newIndex = currentIndex > 0 ? currentIndex - 1 : attachments.length - 1;
+      setCurrentIndex(newIndex);
+      setSelectedAttachment(attachments[newIndex]);
+    } else {
+      const newIndex = currentIndex < attachments.length - 1 ? currentIndex + 1 : 0;
+      setCurrentIndex(newIndex);
+      setSelectedAttachment(attachments[newIndex]);
+    }
+  };
+
+  const toggleVideoPlayback = (attachmentId: string) => {
+    setVideoStates(prev => ({
+      ...prev,
+      [attachmentId]: {
+        ...prev[attachmentId],
+        playing: !prev[attachmentId]?.playing
+      }
+    }));
+  };
+
+  const toggleVideoMute = (attachmentId: string) => {
+    setVideoStates(prev => ({
+      ...prev,
+      [attachmentId]: {
+        ...prev[attachmentId],
+        muted: !prev[attachmentId]?.muted
+      }
+    }));
+  };
+
+  // Helper function to check if description is meaningful (not just a filename)
+  const hasMeaningfulDescription = (description?: string) => {
+    if (!description) return false;
+    
+    // Check if description looks like a filename (contains extensions, timestamps, etc.)
+    const filenamePatterns = [
+      /\.(jpg|jpeg|png|gif|bmp|webp|pdf|doc|docx|xls|xlsx|ppt|pptx|txt|mp3|mp4|avi|mov|wav)$/i,
+      /tempFileForShare_/i,
+      /screenshot_/i,
+      /image_/i,
+      /file_/i,
+      /\d{8}-\d{6}/, // YYYYMMDD-HHMMSS format
+      /^\w+_\d{8}_\d{6}\./, // name_YYYYMMDD_HHMMSS.ext format
+    ];
+    
+    return !filenamePatterns.some(pattern => pattern.test(description));
+  };
+
+  const handleDownload = (attachment: AttachmentResponseDto) => {
+    const link = document.createElement('a');
+    link.href = attachment.url;
+    link.download = attachment.description || `attachment-${attachment.id}`;
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const renderAttachmentPreview = (attachment: AttachmentResponseDto, index: number) => {
+    if (attachment.type === AttachmentType.PHOTO) {
+      return (
+        <div className="relative group">
+          <img
+            src={attachment.url}
+            alt={hasMeaningfulDescription(attachment.description) ? attachment.description : `Photo ${index + 1}`}
+            className={`w-full h-full object-cover rounded-lg cursor-pointer transition-transform hover:scale-105 ${getSizeClasses()}`}
+            onClick={() => openFullscreen(attachment, index)}
+          />
+          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 rounded-lg flex items-center justify-center">
+            <Maximize2 className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
-        ))}
-      </div>
-    );
-  }
+        </div>
+      );
+    }
 
-  return (
-    <div className="space-y-4">
-      <h4 className="text-lg font-medium text-gray-900 flex items-center space-x-2">
-        <FileText size={18} />
-        <span>Attachments ({attachments.length})</span>
-      </h4>
+    if (attachment.type === AttachmentType.VIDEO) {
+      const videoState = videoStates[attachment.id] || { playing: false, muted: true };
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {attachments.map((attachment) => (
-          <div
-            key={attachment.id}
-            className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow"
-          >
-            {/* Thumbnail */}
-            <div className="aspect-video bg-gray-100 relative">
-              {attachment.thumbnail && (
-                <img
-                  src={attachment.thumbnail}
-                  alt={attachment.name}
-                  className="w-full h-full object-cover"
-                />
-              )}
-              <div className="absolute top-2 left-2">
-                <div className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${
-                  attachment.type === 'image' ? 'bg-green-100 text-green-800' :
-                  attachment.type === 'video' ? 'bg-blue-100 text-blue-800' :
-                  attachment.type === 'audio' ? 'bg-purple-100 text-purple-800' :
-                  'bg-gray-100 text-gray-800'
-                }`}>
-                  {getIcon(attachment.type)}
-                  <span className="uppercase">{attachment.type}</span>
-                </div>
-              </div>
-              {isViewable(attachment.type) && (
-                <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 flex items-center justify-center opacity-0 hover:opacity-100 transition-all cursor-pointer">
-                  <button
-                    onClick={() => setSelectedAttachment(attachment)}
-                    className="bg-white bg-opacity-90 text-gray-800 p-3 rounded-full hover:bg-opacity-100 transition-all"
-                  >
-                    {attachment.type === 'video' ? <Play size={24} /> : <Eye size={24} />}
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Details */}
-            <div className="p-4">
-              <h5 className="font-medium text-gray-900 truncate mb-2">{attachment.name}</h5>
-              <p className="text-sm text-gray-500 mb-3">
-                {formatFileSize(attachment.size)} • {attachment.mimeType}
-              </p>
-              
-              <div className="flex items-center space-x-2">
-                {isViewable(attachment.type) && (
-                  <button
-                    onClick={() => setSelectedAttachment(attachment)}
-                    className="flex-1 flex items-center justify-center space-x-2 px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
-                  >
-                    <Eye size={16} />
-                    <span>View</span>
-                  </button>
-                )}
-                <button
-                  onClick={() => window.open(attachment.url, '_blank')}
-                  className={`flex items-center justify-center space-x-2 px-3 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors text-sm font-medium ${
-                    isViewable(attachment.type) ? 'flex-none' : 'flex-1'
-                  }`}
-                >
-                  <Download size={16} />
-                  {!isViewable(attachment.type) && <span>Download</span>}
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Modal for viewing attachments */}
-      {selectedAttachment && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-4xl max-h-full overflow-auto">
-            <div className="flex justify-between items-center p-4 border-b">
-              <h3 className="text-lg font-semibold">{selectedAttachment.name}</h3>
+    return (
+        <div className="relative group">
+          <video
+            src={attachment.url}
+            className={`w-full h-full object-cover rounded-lg ${getSizeClasses()}`}
+            muted={videoState.muted}
+            loop
+            onPlay={() => setVideoStates(prev => ({ ...prev, [attachment.id]: { ...prev[attachment.id], playing: true } }))}
+            onPause={() => setVideoStates(prev => ({ ...prev, [attachment.id]: { ...prev[attachment.id], playing: false } }))}
+            onLoadedMetadata={(e) => {
+              const video = e.currentTarget;
+              if (videoState.playing) {
+                video.play();
+              }
+            }}
+          />
+          
+          {/* Video Controls Overlay */}
+          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 rounded-lg flex items-center justify-center">
+            <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
-                onClick={() => setSelectedAttachment(null)}
-                className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleVideoPlayback(attachment.id);
+                }}
+                className="p-2 bg-black bg-opacity-50 rounded-full text-white hover:bg-opacity-70 transition-colors"
               >
-                ×
+                {videoState.playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
               </button>
-            </div>
-            <div className="p-4">
-              {selectedAttachment.type === 'image' && (
-                <img
-                  src={selectedAttachment.url}
-                  alt={selectedAttachment.name}
-                  className="max-w-full h-auto"
-                />
-              )}
-              {selectedAttachment.type === 'video' && (
-                <video
-                  src={selectedAttachment.url}
-                  controls
-                  className="max-w-full h-auto"
-                  style={{ maxHeight: '70vh' }}
-                >
-                  Your browser does not support the video tag.
-                </video>
-              )}
-            </div>
-            <div className="p-4 border-t bg-gray-50 flex justify-end">
-              <button
-                onClick={() => window.open(selectedAttachment.url, '_blank')}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleVideoMute(attachment.id);
+                }}
+                className="p-2 bg-black bg-opacity-50 rounded-full text-white hover:bg-opacity-70 transition-colors"
               >
-                <Download size={16} />
-                <span>Download</span>
+                {videoState.muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openFullscreen(attachment, index);
+                }}
+                className="p-2 bg-black bg-opacity-50 rounded-full text-white hover:bg-opacity-70 transition-colors"
+              >
+                <Maximize2 className="w-4 h-4" />
               </button>
             </div>
           </div>
         </div>
-      )}
-    </div>
+      );
+    }
+
+    if (attachment.type === AttachmentType.AUDIO) {
+      return (
+        <div className="flex items-center justify-center p-4 bg-gray-100 rounded-lg">
+          <div className="text-center">
+            <Volume2 className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+            {hasMeaningfulDescription(attachment.description) && (
+              <p className="text-sm text-gray-600 mb-2">{attachment.description}</p>
+            )}
+            <audio
+              src={attachment.url}
+              controls
+              className="w-full max-w-xs"
+              onPlay={() => setVideoStates(prev => ({ ...prev, [attachment.id]: { ...prev[attachment.id], playing: true } }))}
+              onPause={() => setVideoStates(prev => ({ ...prev, [attachment.id]: { ...prev[attachment.id], playing: false } }))}
+            />
+          </div>
+      </div>
+    );
+  }
+
+    // PDF and other downloadable files
+  return (
+      <div className="flex items-center justify-center p-4 bg-gray-100 rounded-lg">
+        <div className="text-center">
+          <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mx-auto mb-2">
+            <span className="text-red-600 font-bold text-lg">PDF</span>
+          </div>
+          {hasMeaningfulDescription(attachment.description) && (
+            <p className="text-sm text-gray-600 mb-2">{attachment.description}</p>
+          )}
+          {showDownloadButton && (
+            <button
+              onClick={() => handleDownload(attachment)}
+              className="inline-flex items-center px-3 py-1 bg-red-600 text-white text-xs rounded-md hover:bg-red-700 transition-colors"
+            >
+              <Download className="w-3 h-3 mr-1" />
+              Download
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderFullscreenView = () => {
+    if (!selectedAttachment) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4">
+        <div className="relative max-w-4xl max-h-full">
+          {/* Close Button */}
+          <button
+            onClick={closeFullscreen}
+            className="absolute top-4 right-4 z-10 p-2 bg-black bg-opacity-50 rounded-full text-white hover:bg-opacity-70 transition-colors"
+          >
+            <X className="w-6 h-6" />
+          </button>
+
+          {/* Navigation Buttons */}
+          {attachments.length > 1 && (
+            <>
+              <button
+                onClick={() => navigateAttachment('prev')}
+                className="absolute left-4 top-1/2 transform -translate-y-1/2 z-10 p-2 bg-black bg-opacity-50 rounded-full text-white hover:bg-opacity-70 transition-colors"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+              <button
+                onClick={() => navigateAttachment('next')}
+                className="absolute right-4 top-1/2 transform -translate-y-1/2 z-10 p-2 bg-black bg-opacity-50 rounded-full text-white hover:bg-opacity-70 transition-colors"
+              >
+                <ChevronRight className="w-6 h-6" />
+              </button>
+            </>
+          )}
+
+          {/* Counter */}
+          <div className="absolute top-4 left-4 z-10 px-3 py-1 bg-black bg-opacity-50 rounded-full text-white text-sm">
+            {currentIndex + 1} / {attachments.length}
+          </div>
+
+          {/* Content */}
+          <div className="w-full h-full">
+            {selectedAttachment.type === AttachmentType.PHOTO && (
+              <img
+                src={selectedAttachment.url}
+                alt={hasMeaningfulDescription(selectedAttachment.description) ? selectedAttachment.description : 'Fullscreen view'}
+                className="w-full h-full object-contain"
+              />
+            )}
+            {selectedAttachment.type === AttachmentType.VIDEO && (
+              <video
+                src={selectedAttachment.url}
+                className="w-full h-full object-contain"
+                controls
+                autoPlay
+                loop
+              />
+            )}
+            {selectedAttachment.type === AttachmentType.AUDIO && (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center">
+                  <Volume2 className="w-24 h-24 text-white mx-auto mb-4" />
+                  {hasMeaningfulDescription(selectedAttachment.description) && (
+                    <p className="text-white text-lg mb-4">{selectedAttachment.description}</p>
+                  )}
+                  <audio
+                    src={selectedAttachment.url}
+                    controls
+                    className="w-full max-w-md"
+                  />
+                </div>
+              </div>
+            )}
+            {selectedAttachment.type === AttachmentType.PDF && (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center">
+                  <div className="w-24 h-24 bg-red-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+                    <span className="text-red-600 font-bold text-2xl">PDF</span>
+                  </div>
+                  {hasMeaningfulDescription(selectedAttachment.description) && (
+                    <p className="text-white text-lg mb-4">{selectedAttachment.description}</p>
+                  )}
+                  <button
+                    onClick={() => handleDownload(selectedAttachment)}
+                    className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Download PDF
+                  </button>
+                </div>
+                </div>
+              )}
+            </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <>
+      <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 ${className}`}>
+        {attachments.map((attachment, index) => (
+          <div key={attachment.id} className="relative">
+            {renderAttachmentPreview(attachment, index)}
+            
+            {/* Attachment Info */}
+            <div className="mt-2 text-center">
+              {hasMeaningfulDescription(attachment.description) ? (
+                <p className="text-sm text-gray-600 truncate">
+                  {attachment.description}
+                </p>
+              ) : (
+                <p className="text-sm text-gray-600">
+                  {attachment.type === AttachmentType.PHOTO ? 'Photo' : 
+                   attachment.type === AttachmentType.VIDEO ? 'Video' : 
+                   attachment.type === AttachmentType.AUDIO ? 'Audio File' : 
+                   attachment.type === AttachmentType.PDF ? 'Document' : 'Attachment'} {index + 1}
+                </p>
+              )}
+              <p className="text-xs text-gray-400 capitalize">
+                {attachment.type.toLowerCase()}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Fullscreen Modal */}
+      {renderFullscreenView()}
+    </>
   );
 };
 

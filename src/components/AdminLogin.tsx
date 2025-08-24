@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { Eye, EyeOff, Shield, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, Shield } from 'lucide-react';
 import { useAdminAuth } from '../contexts/AdminAuthContext';
 
 interface AdminLoginProps {
   onSuccess: () => void;
-  onBack: () => void;
+  onShowRegister: () => void;
 }
 
-const AdminLogin = ({ onSuccess, onBack }: AdminLoginProps) => {
+const AdminLogin = ({ onSuccess, onShowRegister }: AdminLoginProps) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -37,15 +37,6 @@ const AdminLogin = ({ onSuccess, onBack }: AdminLoginProps) => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
-        {/* Back button */}
-        <button
-          onClick={onBack}
-          className="flex items-center text-blue-600 hover:text-blue-800 mb-4"
-        >
-          <ArrowLeft size={20} className="mr-2" />
-          Back to Main Site
-        </button>
-
         <div>
           <div className="flex justify-center">
             <div className="bg-blue-600 text-white p-3 rounded-full">
@@ -56,7 +47,7 @@ const AdminLogin = ({ onSuccess, onBack }: AdminLoginProps) => {
             Admin Portal
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Sign in to your leader account
+            Sign in to your administrative account
           </p>
         </div>
 
@@ -108,7 +99,9 @@ const AdminLogin = ({ onSuccess, onBack }: AdminLoginProps) => {
           </div>
 
           {error && (
-            <div className="text-red-600 text-sm text-center">{error}</div>
+            <div className="rounded-md bg-red-50 p-4">
+              <div className="text-sm text-red-700">{error}</div>
+            </div>
           )}
 
           <div>
@@ -120,18 +113,22 @@ const AdminLogin = ({ onSuccess, onBack }: AdminLoginProps) => {
               {isLoading ? 'Signing in...' : 'Sign in'}
             </button>
           </div>
-
-          {/* Demo credentials */}
-          <div className="mt-4 p-4 bg-gray-100 rounded-md">
-            <h3 className="font-semibold text-sm text-gray-700 mb-2">Demo Credentials:</h3>
-            <div className="text-xs text-gray-600 space-y-1">
-              <p><strong>Cell Leader:</strong> jp.habimana@cell.gov.rw</p>
-              <p><strong>Sector Leader:</strong> mc.uwamahoro@sector.gov.rw</p>
-              <p><strong>District Leader:</strong> e.ntirenganya@district.gov.rw</p>
-              <p><strong>Password:</strong> admin123</p>
-            </div>
-          </div>
         </form>
+
+        <div className="text-center space-y-3">
+          <div>
+            <button
+              type="button"
+              onClick={onShowRegister}
+              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+            >
+              Don't have an admin account? Register here
+            </button>
+          </div>
+          <p className="text-xs text-gray-500">
+            Access to this portal is restricted to authorized government officials and administrators.
+          </p>
+        </div>
       </div>
     </div>
   );

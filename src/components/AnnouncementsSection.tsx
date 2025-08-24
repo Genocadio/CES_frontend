@@ -1,42 +1,86 @@
 import React, { useState } from 'react';
-import { AlertCircle } from 'lucide-react';
-import { Announcement } from '../types';
+import { AlertCircle, Calendar, Eye, Clock } from 'lucide-react';
+import { AnnouncementResponseDto } from '../types';
 import { AnnouncementCard } from './AnnouncementCard';
 import { getTranslation } from '../i18n/translations';
+import { useAnnouncements } from '../hooks/useAnnouncements';
 
 interface AnnouncementsSectionProps {
-  announcements: Announcement[];
   language: string;
   currentUser?: any;
-  onMarkAsRead?: (announcementId: string) => void;
 }
 
 export const AnnouncementsSection: React.FC<AnnouncementsSectionProps> = ({ 
-  announcements, 
   language, 
-  currentUser, 
-  onMarkAsRead 
+  currentUser 
 }) => {
-  const [selectedPriority, setSelectedPriority] = useState('all');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedReadStatus, setSelectedReadStatus] = useState('all');
+  const {
+    announcements,
+    isLoading,
+    error,
+    totalPages,
+    currentPage,
+    totalElements,
+    markAsRead,
+    nextPage,
+    previousPage,
+    hasNext,
+    hasPrevious,
+  } = useAnnouncements({ enabled: true, isAdmin: false });
 
-  const priorities = ['all', 'normal', 'important', 'urgent'];
-  const categories = ['all', 'government', 'healthcare', 'infrastructure', 'education'];
+  const [selectedLanguage, setSelectedLanguage] = useState('all');
+  const [selectedStatus, setSelectedStatus] = useState('all');
 
+  // Filter announcements based on selected criteria
   const filteredAnnouncements = announcements.filter(announcement => {
-    const matchesPriority = selectedPriority === 'all' || announcement.priority === selectedPriority;
-    const matchesCategory = selectedCategory === 'all' || announcement.category === selectedCategory;
+    const matchesLanguage = selectedLanguage === 'all' || announcement.language === selectedLanguage;
+    const matchesStatus = selectedStatus === 'all' || 
+      (selectedStatus === 'active' && announcement.active) ||
+      (selectedStatus === 'expired' && !announcement.active);
     
-    // Filter by read status
-    let matchesReadStatus = true;
-    if (currentUser && selectedReadStatus !== 'all') {
-      const isRead = announcement.readBy.includes(currentUser.id);
-      matchesReadStatus = selectedReadStatus === 'read' ? isRead : !isRead;
-    }
-    
-    return matchesPriority && matchesCategory && matchesReadStatus;
+    return matchesLanguage && matchesStatus;
   });
+
+  const handleMarkAsRead = async (announcementId: number) => {
+    await markAsRead(announcementId);
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Intl.DateTimeFormat(language === 'ENGLISH' ? 'en-US' : language === 'FRENCH' ? 'fr-FR' : 'en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(new Date(dateString));
+  };
+
+  const getLanguageLabel = (lang: string) => {
+    switch (lang) {
+      case 'ENGLISH': return 'English';
+      case 'KINYARWANDA': return 'Kinyarwanda';
+      case 'FRENCH': return 'French';
+      default: return lang;
+    }
+  };
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-red-600 mb-4">
+          <AlertCircle size={48} className="mx-auto" />
+        </div>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Announcements</h3>
+        <p className="text-gray-600">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -52,12 +96,12 @@ export const AnnouncementsSection: React.FC<AnnouncementsSectionProps> = ({
         </div>
         <div className="flex items-center space-x-2 text-sm text-gray-600">
           <AlertCircle size={16} />
-          <span>{announcements.length} total announcements</span>
+          <span>{totalElements} total announcements</span>
           {currentUser && (
             <>
               <span>•</span>
               <span className="text-blue-600 font-medium">
-                {announcements.filter(a => !a.readBy.includes(currentUser.id)).length} unread
+                {announcements.filter(a => !a.hasViewed).length} unread
               </span>
             </>
           )}
@@ -66,118 +110,132 @@ export const AnnouncementsSection: React.FC<AnnouncementsSectionProps> = ({
 
       {/* Filters */}
       <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Priority Filter */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Language Filter */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              {getTranslation('priority', language)}
+              Language
             </label>
             <select
-              value={selectedPriority}
-              onChange={(e) => setSelectedPriority(e.target.value)}
+              value={selectedLanguage}
+              onChange={(e) => setSelectedLanguage(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              {priorities.map(priority => (
-                <option key={priority} value={priority}>
-                  {priority === 'all' ? 'All Priorities' : priority === 'urgent' ? 'Urgent' : priority === 'important' ? 'Important' : 'Normal'}
-                </option>
-              ))}
+              <option value="all">All Languages</option>
+              <option value="ENGLISH">English</option>
+              <option value="KINYARWANDA">Kinyarwanda</option>
+              <option value="FRENCH">French</option>
             </select>
           </div>
 
-          {/* Category Filter */}
+          {/* Status Filter */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              {getTranslation('category', language)}
+              Status
             </label>
             <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              {categories.map(category => (
-                <option key={category} value={category}>
-                  {category === 'all' ? 'All Categories' : category === 'healthcare' ? 'Healthcare' : category === 'infrastructure' ? 'Infrastructure' : category === 'education' ? 'Education' : 'Government'}
-                </option>
-              ))}
+              <option value="all">All Announcements</option>
+              <option value="active">Active Only</option>
+              <option value="expired">Expired Only</option>
             </select>
           </div>
-
-          {/* Read Status Filter */}
-          {currentUser && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Read Status
-              </label>
-              <select
-                value={selectedReadStatus}
-                onChange={(e) => setSelectedReadStatus(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="all">All Announcements</option>
-                <option value="unread">Unread Only</option>
-                <option value="read">Read Only</option>
-              </select>
-            </div>
-          )}
         </div>
       </div>
 
-      {/* Priority Summary */}
+      {/* Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-red-600">Urgent</p>
-              <p className="text-2xl font-bold text-red-800">
-                {announcements.filter(a => a.priority === 'urgent').length}
+              <p className="text-sm font-medium text-blue-600">Total</p>
+              <p className="text-2xl font-bold text-blue-800">{totalElements}</p>
+            </div>
+            <AlertCircle className="text-blue-600" size={24} />
+          </div>
+        </div>
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-green-600">Active</p>
+              <p className="text-2xl font-bold text-green-800">
+                {announcements.filter(a => a.active).length}
               </p>
             </div>
-            <AlertCircle className="text-red-600" size={24} />
+            <Clock className="text-green-600" size={24} />
           </div>
         </div>
         <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-orange-600">Important</p>
+              <p className="text-sm font-medium text-orange-600">Unread</p>
               <p className="text-2xl font-bold text-orange-800">
-                {announcements.filter(a => a.priority === 'important').length}
+                {announcements.filter(a => !a.hasViewed).length}
               </p>
             </div>
-            <AlertCircle className="text-orange-600" size={24} />
-          </div>
-        </div>
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-blue-600">Normal</p>
-              <p className="text-2xl font-bold text-blue-800">
-                {announcements.filter(a => a.priority === 'normal').length}
-              </p>
-            </div>
-            <AlertCircle className="text-blue-600" size={24} />
+            <Eye className="text-orange-600" size={24} />
           </div>
         </div>
       </div>
 
+      {/* Loading State */}
+      {isLoading && (
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading announcements...</p>
+        </div>
+      )}
+
       {/* Announcements List */}
-      <div className="space-y-4">
-        {filteredAnnouncements.length > 0 ? (
-          filteredAnnouncements.map(announcement => (
-            <AnnouncementCard
-              key={announcement.id}
-              announcement={announcement}
-              language={language}
-              currentUser={currentUser}
-              onMarkAsRead={onMarkAsRead}
-            />
-          ))
-        ) : (
-          <div className="text-center py-12 bg-white border border-gray-200 rounded-lg">
-            <p className="text-gray-500 text-lg">No announcements found matching your criteria.</p>
-          </div>
-        )}
-      </div>
+      {!isLoading && (
+        <div className="space-y-4">
+          {filteredAnnouncements.length > 0 ? (
+            filteredAnnouncements.map(announcement => (
+              <AnnouncementCard
+                key={announcement.id}
+                announcement={announcement}
+                language={language}
+                currentUser={currentUser}
+                onMarkAsRead={handleMarkAsRead}
+                formatDate={formatDate}
+                getLanguageLabel={getLanguageLabel}
+              />
+            ))
+          ) : (
+            <div className="text-center py-12 bg-white border border-gray-200 rounded-lg">
+              <p className="text-gray-500 text-lg">No announcements found matching your criteria.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {!isLoading && totalPages > 1 && (
+        <div className="flex justify-center items-center space-x-2">
+          <button
+            onClick={previousPage}
+            disabled={!hasPrevious}
+            className="px-3 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+          >
+            Previous
+          </button>
+          
+          <span className="px-3 py-2 text-sm text-gray-600">
+            Page {currentPage + 1} of {totalPages}
+          </span>
+          
+          <button
+            onClick={nextPage}
+            disabled={!hasNext}
+            className="px-3 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 };

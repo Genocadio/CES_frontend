@@ -13,7 +13,7 @@ This enhancement introduces a comprehensive user management system with detailed
 ### 2. User Authentication System
 - Login/logout functionality
 - User session management
-- Demo accounts for testing
+
 
 ### 3. User Dashboard
 - Personal profile overview
@@ -30,7 +30,7 @@ Displays user profile information in tabs:
 - **Topics**: List of topics created by the user
 
 ### UserDashboard.tsx
-Main dashboard component for user management with user selection dropdown for demo purposes.
+Main dashboard component for user management with user selection dropdown.
 
 ### UserForm.tsx
 Registration/profile editing form with:
@@ -41,7 +41,6 @@ Registration/profile editing form with:
 ### Login.tsx
 Authentication component with:
 - Email/password login
-- Demo account buttons
 - Error handling
 
 ### UserMenu.tsx
@@ -58,20 +57,7 @@ React context for user authentication:
 
 ## Usage
 
-### Demo Accounts
-All demo accounts use the password: `password`
 
-1. **Marie Uwimana** (Citizen)
-   - Email: marie.uwimana@citizen.rw
-   - Has reported issues and created topics
-
-2. **Jean Baptiste Nzeyimana** (Citizen)
-   - Email: jean.nzeyimana@citizen.rw
-   - Has reported water supply issues
-
-3. **Dr. Alice Mukamana** (Government Official)
-   - Email: alice.mukamana@health.gov.rw
-   - Ministry of Health representative
 
 ### Navigation
 - **Dashboard**: User overview and profile management

@@ -10,7 +10,7 @@ interface UserProfileProps {
   language?: string;
 }
 
-const UserProfile: React.FC<UserProfileProps> = ({ userId, currentUser, language = 'en' }) => {
+const UserProfile: React.FC<UserProfileProps> = ({ userId, currentUser, language = 'ENGLISH' }) => {
   const [activeTab, setActiveTab] = useState<'profile' | 'issues' | 'topics'>('profile');
   
   const user = users.find(u => u.id === userId);
@@ -179,7 +179,16 @@ const UserProfile: React.FC<UserProfileProps> = ({ userId, currentUser, language
                     key={issue.id} 
                     issue={issue} 
                     language={language}
+                    currentUser={user}
                     onClick={() => {}}
+                    onIssueUpdate={(updatedIssue) => {
+                      // Update the issue in the local state
+                      setUserIssues(prevIssues => 
+                        prevIssues.map(i => 
+                          i.id === updatedIssue.id ? updatedIssue : i
+                        )
+                      );
+                    }}
                   />
                 ))}
               </div>

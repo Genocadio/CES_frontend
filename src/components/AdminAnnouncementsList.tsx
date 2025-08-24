@@ -1,94 +1,134 @@
 import React, { useState } from 'react';
-import { Plus, Edit, Trash2, Eye, Megaphone, Calendar, MapPin } from 'lucide-react';
-import { Announcement, User } from '../types';
-import { announcements } from '../data/dummyData';
-import { users } from '../data/dummyData';
+import { Plus, Edit, Trash2, Eye, Megaphone, Calendar, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { AnnouncementResponseDto, AnnouncementRequestDto } from '../types';
+import { useAnnouncements } from '../hooks/useAnnouncements';
 import AdminAnnouncementForm from './AdminAnnouncementForm';
 
 interface AdminAnnouncementsListProps {
   currentLeader?: any;
 }
 
+type FilterType = 'all' | 'active' | 'expired';
+type SortType = 'newest' | 'oldest' | 'popular';
+
 const AdminAnnouncementsList: React.FC<AdminAnnouncementsListProps> = ({ currentLeader }) => {
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
-  const [selectedPriority, setSelectedPriority] = useState('all');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedRegionalFocus, setSelectedRegionalFocus] = useState('all');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [filter, setFilter] = useState<FilterType>('all');
+  const [sortBy, setSortBy] = useState<SortType>('newest');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingAnnouncement, setEditingAnnouncement] = useState<AnnouncementResponseDto | null>(null);
 
-  const priorities = ['all', 'normal', 'important', 'urgent'];
-  const categories = ['all', 'government', 'healthcare', 'infrastructure', 'education'];
-
-  const filteredAnnouncements = announcements.filter(announcement => {
-    const matchesPriority = selectedPriority === 'all' || announcement.priority === selectedPriority;
-    const matchesCategory = selectedCategory === 'all' || announcement.category === selectedCategory;
-    const matchesRegionalFocus = selectedRegionalFocus === 'all' || 
-      (selectedRegionalFocus === 'regional' && announcement.targetAudience?.some(audience => audience.startsWith('regional_'))) ||
-      (selectedRegionalFocus === 'district_wide' && announcement.targetAudience?.some(audience => audience.includes('all_sectors') || (audience.includes('default') && audience.includes('district')))) ||
-      (selectedRegionalFocus === 'sector_wide' && announcement.targetAudience?.some(audience => audience.includes('all_cells') || (audience.includes('default') && audience.includes('sector')))) ||
-      (selectedRegionalFocus === 'cell_specific' && announcement.targetAudience?.some(audience => audience.includes('specific_cell') || (audience.includes('default') && audience.includes('cell')))) ||
-      (selectedRegionalFocus === 'general' && !announcement.targetAudience?.some(audience => audience.startsWith('regional_')));
-    const matchesSearch = announcement.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         announcement.content.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    return matchesPriority && matchesCategory && matchesRegionalFocus && matchesSearch;
+  // Fetch announcements from API
+  const {
+    announcements,
+    isLoading,
+    error,
+    totalPages,
+    totalElements,
+    currentPage,
+    hasNext,
+    hasPrevious,
+    refetch,
+    fetchNextPage,
+    fetchPreviousPage,
+    goToPage,
+    createAnnouncement,
+    updateAnnouncement,
+    deleteAnnouncement
+  } = useAnnouncements({
+    page: 0,
+    size: 20,
+    sortBy: sortBy === 'newest' ? 'createdAt' : sortBy === 'oldest' ? 'createdAt' : 'viewCount',
+    sortDir: sortBy === 'oldest' ? 'asc' : 'desc',
+    enabled: true,
+    isAdmin: true
   });
 
-  const handleEdit = (announcement: Announcement) => {
+  const filteredAnnouncements = announcements.filter(announcement => {
+    const matchesSearch = announcement.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         announcement.description.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    if (filter === 'active') return announcement.active && matchesSearch;
+    if (filter === 'expired') return !announcement.active && matchesSearch;
+    return matchesSearch;
+  });
+
+  const handleEdit = (announcement: AnnouncementResponseDto) => {
     setEditingAnnouncement(announcement);
-    setIsFormOpen(true);
+    setShowCreateForm(true);
   };
 
-  const handleDelete = (announcementId: string) => {
+  const handleDelete = async (announcementId: number) => {
     if (window.confirm('Are you sure you want to delete this announcement?')) {
-      // In a real app, this would call an API to delete the announcement
-      console.log('Deleting announcement:', announcementId);
+      const success = await deleteAnnouncement(announcementId);
+      if (success) {
+        console.log('Announcement deleted successfully');
+      } else {
+        console.error('Failed to delete announcement');
+      }
     }
   };
 
   const handleFormClose = () => {
-    setIsFormOpen(false);
+    setShowCreateForm(false);
     setEditingAnnouncement(null);
   };
 
-  const handleFormSubmit = (announcementData: Partial<Announcement>) => {
+  const handleFormSubmit = async (announcementData: AnnouncementRequestDto) => {
     if (editingAnnouncement) {
       // Update existing announcement
-      console.log('Updating announcement:', { id: editingAnnouncement.id, ...announcementData });
+      const updated = await updateAnnouncement(editingAnnouncement.id, announcementData);
+      if (updated) {
+        console.log('Announcement updated successfully');
+      } else {
+        console.error('Failed to update announcement');
+      }
     } else {
       // Create new announcement
-      console.log('Creating new announcement:', announcementData);
+      const created = await createAnnouncement(announcementData);
+      if (created) {
+        console.log('Announcement created successfully');
+      } else {
+        console.error('Failed to create announcement');
+      }
     }
     handleFormClose();
   };
 
-  const formatDate = (date: Date) => {
+  const formatDate = (dateString: string) => {
     return new Intl.DateTimeFormat('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
-    }).format(date);
+    }).format(new Date(dateString));
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'urgent': return 'bg-red-100 text-red-800';
-      case 'important': return 'bg-orange-100 text-orange-800';
-      default: return 'bg-blue-100 text-blue-800';
-    }
-  };
-
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case 'healthcare': return 'bg-green-100 text-green-800';
-      case 'infrastructure': return 'bg-purple-100 text-purple-800';
-      case 'education': return 'bg-indigo-100 text-indigo-800';
+  const getLanguageColor = (language: string) => {
+    switch (language) {
+      case 'ENGLISH': return 'bg-blue-100 text-blue-800';
+      case 'KINYARWANDA': return 'bg-green-100 text-green-800';
+      case 'FRENCH': return 'bg-purple-100 text-purple-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg text-gray-600">Loading announcements...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg text-red-600">Error: {error}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -101,7 +141,7 @@ const AdminAnnouncementsList: React.FC<AdminAnnouncementsListProps> = ({ current
           </p>
         </div>
         <button
-          onClick={() => setIsFormOpen(true)}
+          onClick={() => setShowCreateForm(true)}
           className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
         >
           <Plus className="mr-2 h-4 w-4" />
@@ -118,301 +158,211 @@ const AdminAnnouncementsList: React.FC<AdminAnnouncementsListProps> = ({ current
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Total</p>
-              <p className="text-2xl font-bold text-gray-900">{announcements.length}</p>
+              <p className="text-2xl font-bold text-gray-900">{totalElements}</p>
             </div>
           </div>
         </div>
-        <div className="bg-white border border-gray-200 rounded-lg p-4">
-          <div className="flex items-center">
-            <div className="bg-red-100 p-3 rounded-lg">
-              <Megaphone className="w-6 h-6 text-red-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Urgent</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {announcements.filter(a => a.priority === 'urgent').length}
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white border border-gray-200 rounded-lg p-4">
-          <div className="flex items-center">
-            <div className="bg-orange-100 p-3 rounded-lg">
-              <Megaphone className="w-6 h-6 text-orange-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Important</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {announcements.filter(a => a.priority === 'important').length}
-              </p>
-            </div>
-          </div>
-        </div>
+
         <div className="bg-white border border-gray-200 rounded-lg p-4">
           <div className="flex items-center">
             <div className="bg-green-100 p-3 rounded-lg">
-              <Calendar className="w-6 h-6 text-green-600" />
+              <Eye className="w-6 h-6 text-green-600" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Expiring Soon</p>
+              <p className="text-sm font-medium text-gray-600">Active</p>
               <p className="text-2xl font-bold text-gray-900">
-                {announcements.filter(a => a.expiresAt && new Date(a.expiresAt) < new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)).length}
+                {announcements.filter(a => a.active).length}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <div className="bg-orange-100 p-3 rounded-lg">
+              <Calendar className="w-6 h-6 text-orange-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Expired</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {announcements.filter(a => !a.active).length}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <div className="bg-purple-100 p-3 rounded-lg">
+              <Megaphone className="w-6 h-6 text-purple-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">This Month</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {announcements.filter(a => {
+                  const createdAt = new Date(a.createdAt);
+                  const now = new Date();
+                  return createdAt.getMonth() === now.getMonth() && createdAt.getFullYear() === now.getFullYear();
+                }).length}
               </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          {/* Search */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search announcements..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
+      {/* Filters and Search */}
+      <div className="bg-white border border-gray-200 rounded-lg p-4">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-4">
+            {/* Filter */}
+            <div className="flex items-center space-x-2">
+              <label className="text-sm font-medium text-gray-700">Filter:</label>
+              <select
+                value={filter}
+                onChange={(e) => setFilter(e.target.value as FilterType)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="all">All Announcements</option>
+                <option value="active">Active Only</option>
+                <option value="expired">Expired Only</option>
+              </select>
+            </div>
 
-          {/* Priority Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
-            <select
-              value={selectedPriority}
-              onChange={(e) => setSelectedPriority(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              {priorities.map(priority => (
-                <option key={priority} value={priority}>
-                  {priority === 'all' ? 'All Priorities' : priority.charAt(0).toUpperCase() + priority.slice(1)}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Category Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              {categories.map(category => (
-                <option key={category} value={category}>
-                  {category === 'all' ? 'All Categories' : category.charAt(0).toUpperCase() + category.slice(1)}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Regional Focus Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Regional Focus</label>
-            <select
-              value={selectedRegionalFocus}
-              onChange={(e) => setSelectedRegionalFocus(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="all">All Announcements</option>
-              <option value="regional">Regional Only</option>
-              <option value="district_wide">District-wide Only</option>
-              <option value="sector_wide">Sector-wide Only</option>
-              <option value="cell_specific">Cell-specific Only</option>
-              <option value="general">General Only</option>
-            </select>
-          </div>
-
-          {/* Results Count */}
-          <div className="flex items-end">
-            <div className="text-sm text-gray-600">
-              <p>{filteredAnnouncements.length} of {announcements.length} announcements</p>
-              <p className="text-xs text-blue-600">
-                {announcements.filter(a => a.targetAudience?.some(audience => audience.includes('all_sectors') || (audience.includes('default') && audience.includes('district')))).length} district-wide, {' '}
-                {announcements.filter(a => a.targetAudience?.some(audience => audience.includes('all_cells') || (audience.includes('default') && audience.includes('sector')))).length} sector-wide, {' '}
-                {announcements.filter(a => a.targetAudience?.some(audience => audience.includes('specific_cell') || (audience.includes('default') && audience.includes('cell')))).length} cell-specific, {' '}
-                {announcements.filter(a => !a.targetAudience?.some(audience => audience.startsWith('regional_'))).length} general
-              </p>
+            {/* Sort */}
+            <div className="flex items-center space-x-2">
+              <label className="text-sm font-medium text-gray-700">Sort by:</label>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortType)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="popular">Most Viewed</option>
+              </select>
             </div>
           </div>
+
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search announcements..."
+              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Results Summary */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-gray-600">
+          Showing {filteredAnnouncements.length} of {totalElements} announcements
+        </p>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={fetchPreviousPage}
+            disabled={!hasPrevious}
+            className="px-3 py-1 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <span className="text-sm text-gray-600">
+            Page {currentPage + 1} of {totalPages}
+          </span>
+          <button
+            onClick={fetchNextPage}
+            disabled={!hasNext}
+            className="px-3 py-1 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+          >
+            <ChevronRight size={16} />
+          </button>
         </div>
       </div>
 
       {/* Announcements List */}
       <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Announcement
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Author
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Priority
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Category
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Created
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Expires
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredAnnouncements.map((announcement) => {
-                const author = users.find(u => u.id === announcement.author.id);
-                return (
-                  <tr key={announcement.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <h3 className="text-sm font-medium text-gray-900 truncate">
-                            {announcement.title}
-                          </h3>
-                          {announcement.targetAudience?.some(audience => audience.startsWith('regional_')) && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                              <MapPin className="w-3 h-3 mr-1" />
-                              {(() => {
-                                const regional = announcement.targetAudience.find(audience => audience.startsWith('regional_'));
-                                if (regional) {
-                                  const parts = regional.split('_');
-                                  if (parts[2] === 'default') {
-                                    if (parts[1] === 'district') return 'District-wide (Default)';
-                                    if (parts[1] === 'sector') return 'Sector-wide (Default)';
-                                    if (parts[1] === 'cell') return 'Cell-specific (Default)';
-                                  }
-                                  if (parts[2] === 'all_sectors') return 'District-wide';
-                                  if (parts[2] === 'all_cells') return 'Sector-wide';
-                                  if (parts[2] === 'specific_cell') return 'Cell-specific';
-                                }
-                                return 'Regional';
-                              })()}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-sm text-gray-600 truncate">
-                          {announcement.content.substring(0, 100)}...
-                        </p>
-                        {announcement.targetAudience && announcement.targetAudience.length > 0 && (
-                          <div className="flex items-center mt-1">
-                            <MapPin className="w-3 h-3 text-gray-400 mr-1" />
-                            <span className="text-xs text-gray-500">
-                              {announcement.targetAudience
-                                .filter(audience => !audience.startsWith('regional_'))
-                                .join(', ')}
-                              {announcement.targetAudience.some(audience => audience.startsWith('regional_')) && (
-                                <span className="ml-1 text-blue-600">
-                                  • Regional Focus
-                                </span>
-                              )}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center">
-                        <img
-                          src={author?.avatar || announcement.author.avatar}
-                          alt={author?.name || announcement.author.name}
-                          className="w-8 h-8 rounded-full"
-                        />
-                        <div className="ml-3">
-                          <p className="text-sm font-medium text-gray-900">
-                            {author?.name || announcement.author.name}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {author?.department || announcement.author.department || 'Citizen'}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(announcement.priority)}`}>
-                        {announcement.priority}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCategoryColor(announcement.category)}`}>
-                        {announcement.category}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
-                      {formatDate(announcement.createdAt)}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
-                      {announcement.expiresAt ? (
-                        <span className={new Date(announcement.expiresAt) < new Date() ? 'text-red-600' : ''}>
-                          {formatDate(announcement.expiresAt)}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400">No expiration</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => handleEdit(announcement)}
-                          className="text-blue-600 hover:text-blue-900 p-1"
-                          title="Edit"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(announcement.id)}
-                          className="text-red-600 hover:text-red-900 p-1"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        
-        {filteredAnnouncements.length === 0 && (
+        {filteredAnnouncements.length === 0 ? (
           <div className="text-center py-12">
             <Megaphone className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">No announcements</h3>
             <p className="mt-1 text-sm text-gray-500">
-              {searchTerm || selectedPriority !== 'all' || selectedCategory !== 'all' 
-                ? 'Try adjusting your search or filters.' 
-                : 'Get started by creating a new announcement.'}
+              {searchQuery ? 'No announcements match your search.' : 'Get started by creating a new announcement.'}
             </p>
-            {!searchTerm && selectedPriority === 'all' && selectedCategory === 'all' && (
-              <div className="mt-6">
-                <button
-                  onClick={() => setIsFormOpen(true)}
-                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  New Announcement
-                </button>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-200">
+            {filteredAnnouncements.map((announcement) => (
+              <div key={announcement.id} className="p-6 hover:bg-gray-50">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-3 mb-2">
+                      <h3 className="text-lg font-medium text-gray-900">{announcement.title}</h3>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getLanguageColor(announcement.language)}`}>
+                        {announcement.language}
+                      </span>
+                      {announcement.active ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          Active
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                          Expired
+                        </span>
+                      )}
+                    </div>
+                    
+                    <p className="text-gray-600 mb-3 line-clamp-2">{announcement.description}</p>
+                    
+                    <div className="flex items-center space-x-6 text-sm text-gray-500">
+                      <div className="flex items-center space-x-1">
+                        <Eye size={14} />
+                        <span>{announcement.viewCount} views</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <Calendar size={14} />
+                        <span>Created: {formatDate(announcement.createdAt)}</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <Calendar size={14} />
+                        <span>Expires: {formatDate(announcement.endTime)}</span>
+                      </div>
+                      {announcement.attachments.length > 0 && (
+                        <div className="flex items-center space-x-1">
+                          <span>📎 {announcement.attachments.length} attachment(s)</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2 ml-4">
+                    <button
+                      onClick={() => handleEdit(announcement)}
+                      className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="Edit announcement"
+                    >
+                      <Edit size={16} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(announcement.id)}
+                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Delete announcement"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
               </div>
-            )}
+            ))}
           </div>
         )}
       </div>
 
-      {/* Announcement Form Modal */}
-      {isFormOpen && (
+      {/* Create/Edit Form Modal */}
+      {showCreateForm && (
         <AdminAnnouncementForm
           announcement={editingAnnouncement}
           onClose={handleFormClose}

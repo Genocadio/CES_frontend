@@ -1,8 +1,14 @@
 import React, { useState } from 'react';
-import { MessageCircle, TrendingUp, Plus, Filter, Search } from 'lucide-react';
-import { Topic, Leader } from '../types';
-import { topics } from '../data/dummyData';
+import { MessageCircle, TrendingUp, Plus, Filter, Search, Loader2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { TopicResponseDto, Leader, TopicRequestDto } from '../types';
 import AdminTopicDetail from './AdminTopicDetail';
+import { CreateTopicForm } from './CreateTopicForm';
+import { TopicCard } from './TopicCard';
+import FloatingActionButton from './FloatingActionButton';
+import { API_ENDPOINTS } from '../config/api';
+import { useTopics } from '../hooks/useTopics';
+import { useTopicInteractions } from '../hooks/useTopicInteractions';
+import { createAdminAuthenticatedFetch } from '../utils/adminApiInterceptor';
 
 interface AdminTopicsListProps {
   currentLeader: Leader;
@@ -15,8 +21,36 @@ const AdminTopicsList: React.FC<AdminTopicsListProps> = ({ currentLeader }) => {
   const [filter, setFilter] = useState<FilterType>('all');
   const [sortBy, setSortBy] = useState<SortType>('newest');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
+  const [selectedTopic, setSelectedTopic] = useState<TopicResponseDto | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
+
+  // Get topic interaction functions for admin
+  const { upvoteTopic, downvoteTopic, followTopic } = useTopicInteractions({ 
+    isAdmin: true, 
+    onUnauthorized: undefined // Admin 401 handling is managed by page reload
+  });
+
+  // Fetch topics from API
+  const {
+    topics,
+    isLoading,
+    error,
+    totalPages,
+    totalElements,
+    currentPage,
+    hasNext,
+    hasPrevious,
+    refetch,
+    fetchNextPage,
+    fetchPreviousPage,
+    goToPage
+  } = useTopics({
+    page: 0,
+    size: 20,
+    sortBy: sortBy === 'newest' ? 'createdAt' : sortBy === 'popular' ? 'upvoteCount' : 'replycount',
+    sortDir: 'desc',
+    enabled: true
+  });
 
   // Filter topics based on leader's level and location
   const getFilteredTopics = () => {
@@ -25,8 +59,9 @@ const AdminTopicsList: React.FC<AdminTopicsListProps> = ({ currentLeader }) => {
     // Apply search filter
     if (searchQuery.trim()) {
       filtered = filtered.filter(topic =>
-        topic.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        topic.hashtags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+        topic.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        topic.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        topic.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
       );
     }
 
@@ -34,52 +69,35 @@ const AdminTopicsList: React.FC<AdminTopicsListProps> = ({ currentLeader }) => {
     switch (filter) {
       case 'my_region':
         filtered = filtered.filter(topic => {
-          if (!topic.regionalRestriction) return true;
+          if (!topic.focusLocation) return true;
           
-          const { level, district, sector, cell } = topic.regionalRestriction;
+          const { district, sector, cell } = topic.focusLocation;
           const leaderLocation = currentLeader.location;
           
-          switch (level) {
-            case 'district':
-              return leaderLocation.district === district;
-            case 'sector':
-              return leaderLocation.district === district && leaderLocation.sector === sector;
-            case 'cell':
-              return leaderLocation.district === district && 
-                     leaderLocation.sector === sector && 
-                     leaderLocation.cell === cell;
-            default:
-              return true;
+          // Check if topic is in leader's region
+          if (leaderLocation.district && district && leaderLocation.district !== district) {
+            return false;
           }
+          if (leaderLocation.sector && sector && leaderLocation.sector !== sector) {
+            return false;
+          }
+          if (leaderLocation.cell && cell && leaderLocation.cell !== cell) {
+            return false;
+          }
+          return true;
         });
         break;
       case 'my_topics':
-        filtered = filtered.filter(topic => topic.author.id === currentLeader.id);
+        filtered = filtered.filter(topic => topic.createdBy.id === parseInt(currentLeader.id));
         break;
       case 'trending':
         filtered = filtered.filter(topic => 
-          topic.votes.length > 10 || topic.replies.length > 5
+          topic.upvoteCount > 10 || topic.replycount > 5
         );
         break;
       default:
         break;
     }
-
-    // Apply sorting
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case 'newest':
-          return b.createdAt.getTime() - a.createdAt.getTime();
-        case 'popular':
-          return (b.votes.length + b.replies.length) - (a.votes.length + a.replies.length);
-        case 'most_replies':
-          return b.replies.length - a.replies.length;
-        case 'most_followers':
-          return b.followers.length - a.followers.length;
-        default:
-          return 0;
-      }
-    });
 
     return filtered;
   };
@@ -90,7 +108,43 @@ const AdminTopicsList: React.FC<AdminTopicsListProps> = ({ currentLeader }) => {
     setShowCreateForm(true);
   };
 
-  const handleTopicClick = (topic: Topic) => {
+  const handleForceLogout = () => {
+    console.log('Admin force logout triggered');
+    // Clear admin tokens and redirect to admin login
+    localStorage.removeItem('adminAuthTokens');
+    localStorage.removeItem('currentAdminLeader');
+    window.location.href = '/admin';
+  };
+
+  const handleTopicSubmit = async (topicData: TopicRequestDto) => {
+    try {
+      const adminFetch = createAdminAuthenticatedFetch(handleForceLogout);
+      
+      const response = await adminFetch(API_ENDPOINTS.TOPICS.CREATE, {
+        method: 'POST',
+        body: JSON.stringify(topicData)
+      });
+
+      if (!response) {
+        // Response is null when 401 is handled by interceptor
+        return;
+      }
+
+      if (response.ok) {
+        const createdTopic = await response.json();
+        console.log('Topic created successfully:', createdTopic);
+        setShowCreateForm(false);
+        // Refresh the topics list to show the new topic
+        refetch();
+      } else {
+        console.error('Failed to create topic:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Error creating topic:', error);
+    }
+  };
+
+  const handleTopicClick = (topic: TopicResponseDto) => {
     setSelectedTopic(topic);
   };
 
@@ -99,9 +153,30 @@ const AdminTopicsList: React.FC<AdminTopicsListProps> = ({ currentLeader }) => {
     setShowCreateForm(false);
   };
 
-  const handleVote = (type: 'up' | 'down') => {
-    // Implement voting logic for leaders
-    console.log('Leader vote:', type);
+  const handleVote = async (type: 'up' | 'down') => {
+    if (!currentLeader || !selectedTopic) return;
+    
+    try {
+      if (type === 'up') {
+        const updatedTopic = await upvoteTopic(selectedTopic.id);
+        if (updatedTopic) {
+          // Update the selected topic with new voting data
+          setSelectedTopic(updatedTopic);
+          // Refresh the topics list to get updated voting counts
+          await refetch();
+        }
+      } else {
+        const updatedTopic = await downvoteTopic(selectedTopic.id);
+        if (updatedTopic) {
+          // Update the selected topic with new voting data
+          setSelectedTopic(updatedTopic);
+          // Refresh the topics list to get updated voting counts
+          await refetch();
+        }
+      }
+    } catch (error) {
+      console.error(`Failed to ${type}vote topic:`, error);
+    }
   };
 
   const handleReply = (content: string, parentId?: string) => {
@@ -114,9 +189,21 @@ const AdminTopicsList: React.FC<AdminTopicsListProps> = ({ currentLeader }) => {
     console.log('Leader vote reply:', replyId, type);
   };
 
-  const handleFollow = () => {
-    // Implement follow logic for leaders
-    console.log('Leader follow topic');
+  const handleFollow = async () => {
+    if (!currentLeader || !selectedTopic) return;
+    
+    try {
+      const updatedTopic = await followTopic(selectedTopic.id);
+      if (updatedTopic) {
+        // Update the selected topic with new following data
+        setSelectedTopic(updatedTopic);
+        // Refresh the topics list to get updated data
+        await refetch();
+        console.log('Topic follow status updated:', updatedTopic);
+      }
+    } catch (error) {
+      console.error('Failed to follow/unfollow topic:', error);
+    }
   };
 
   // If a topic is selected, show the detail view
@@ -130,7 +217,7 @@ const AdminTopicsList: React.FC<AdminTopicsListProps> = ({ currentLeader }) => {
         onReply={handleReply}
         onVoteReply={handleVoteReply}
         onFollow={handleFollow}
-        isFollowing={selectedTopic.followers.includes(currentLeader.id)}
+        isFollowing={false} // TODO: Implement follow status check when API supports it
       />
     );
   }
@@ -138,74 +225,12 @@ const AdminTopicsList: React.FC<AdminTopicsListProps> = ({ currentLeader }) => {
   // If create form is shown, show the create topic form
   if (showCreateForm) {
     return (
-      <div className="max-w-2xl mx-auto">
-        <div className="flex items-center space-x-4 mb-6">
-          <button
-            onClick={handleBackToList}
-            className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors"
-          >
-            <MessageCircle size={20} />
-          </button>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">Create New Topic</h1>
-            <p className="text-gray-600">Start a discussion in your community</p>
-          </div>
-        </div>
-        
-        <div className="bg-white rounded-lg shadow p-6">
-          <form className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Topic Content
-              </label>
-              <textarea
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                rows={6}
-                placeholder="Share your thoughts, questions, or start a discussion..."
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Hashtags (optional)
-              </label>
-              <input
-                type="text"
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="#Community #Development #Innovation"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Regional Scope
-              </label>
-              <select className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                <option value="national">National</option>
-                <option value="district">District Level</option>
-                <option value="sector">Sector Level</option>
-                <option value="cell">Cell Level</option>
-              </select>
-            </div>
-            
-            <div className="flex justify-end space-x-3 pt-4">
-              <button
-                type="button"
-                onClick={handleBackToList}
-                className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Create Topic
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
+      <CreateTopicForm
+        onClose={handleBackToList}
+        onSubmit={handleTopicSubmit}
+        isAdmin={true}
+        currentUser={currentLeader}
+      />
     );
   }
 
@@ -219,13 +244,6 @@ const AdminTopicsList: React.FC<AdminTopicsListProps> = ({ currentLeader }) => {
             Engage with your community through discussions and topics
           </p>
         </div>
-        <button
-          onClick={handleCreateTopic}
-          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus size={20} className="mr-2" />
-          Create Topic
-        </button>
       </div>
 
       {/* Search and Filters */}
@@ -276,7 +294,7 @@ const AdminTopicsList: React.FC<AdminTopicsListProps> = ({ currentLeader }) => {
       <div className="flex justify-between items-center">
         <div>
           <p className="text-sm text-gray-600">
-            {filteredTopics.length} topic{filteredTopics.length !== 1 ? 's' : ''} found
+            {totalElements} topic{totalElements !== 1 ? 's' : ''} found
             {filter !== 'all' && ` (${filter.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())})`}
           </p>
         </div>
@@ -289,90 +307,73 @@ const AdminTopicsList: React.FC<AdminTopicsListProps> = ({ currentLeader }) => {
 
       {/* Topics List */}
       <div className="space-y-4">
-        {filteredTopics.length > 0 ? (
-          filteredTopics.map(topic => (
-            <div
-              key={topic.id}
-              className="bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-all duration-200 cursor-pointer"
-              onClick={() => handleTopicClick(topic)}
-            >
-              <div className="p-6">
-                <div className="flex space-x-3">
-                  <img
-                    src={topic.author.avatar}
-                    alt={topic.author.name}
-                    className="w-10 h-10 rounded-full flex-shrink-0"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <span className="font-semibold text-gray-900">
-                        {currentLeader.id === topic.author.id ? 'You' : topic.author.name}
-                      </span>
-                      {topic.author.isGovernment && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                          Gov
-                        </span>
-                      )}
-                      <span className="text-gray-500 text-sm">·</span>
-                      <span className="text-gray-500 text-sm">
-                        {new Date(topic.createdAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <p className="text-gray-900 mb-3 leading-relaxed">
-                      {topic.content}
-                    </p>
-                    {topic.hashtags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mb-3">
-                        {topic.hashtags.map(hashtag => (
-                          <span key={hashtag} className="text-blue-600 hover:underline cursor-pointer">
-                            #{hashtag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    {topic.regionalRestriction && (
-                      <div className="mb-3">
-                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-700">
-                          {topic.regionalRestriction.level}: {topic.regionalRestriction.district}
-                          {topic.regionalRestriction.sector && ` - ${topic.regionalRestriction.sector}`}
-                          {topic.regionalRestriction.cell && ` - ${topic.regionalRestriction.cell}`}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
+        {/* Loading State */}
+        {isLoading && (
+          <div className="text-center py-12 bg-white border border-gray-200 rounded-lg">
+            <Loader2 className="mx-auto h-8 w-8 animate-spin text-blue-600 mb-4" />
+            <p className="text-gray-500">Loading topics...</p>
+          </div>
+        )}
 
-              <div className="border-t border-gray-100 px-6 py-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-6">
-                    <div className="flex items-center space-x-1 text-gray-500">
-                      <span className="text-sm">{topic.votes.length} votes</span>
-                    </div>
-                    <div className="flex items-center space-x-1 text-gray-500">
-                      <MessageCircle size={16} />
-                      <span className="text-sm">{topic.replies.length}</span>
-                    </div>
-                    <div className="flex items-center space-x-1 text-gray-500">
-                      <span className="text-sm">{topic.followers.length} followers</span>
-                    </div>
-                  </div>
-                  {currentLeader.id !== topic.author.id && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleFollow();
-                      }}
-                      className="px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
-                    >
-                      Follow
-                    </button>
-                  )}
-                </div>
-              </div>
+        {/* Error State */}
+        {error && !isLoading && (
+          <div className="text-center py-12 bg-white border border-gray-200 rounded-lg">
+            <AlertCircle className="mx-auto h-8 w-8 text-red-600 mb-4" />
+            <p className="text-red-600 mb-2">Failed to load topics</p>
+            <p className="text-gray-500 text-sm mb-4">{error}</p>
+            <button
+              onClick={refetch}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        )}
+
+        {/* Topics List */}
+        {!isLoading && !error && filteredTopics.length > 0 && (
+          <>
+                      {filteredTopics.map(topic => (
+            <TopicCard
+              key={topic.id}
+              topic={topic}
+              language="en" // TODO: Get language from admin context
+              onClick={() => handleTopicClick(topic)}
+              currentUser={currentLeader}
+              isAdmin={true}
+              onUnauthorized={undefined}
+            />
+          ))}
+          
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center space-x-2 mt-6">
+              <button
+                onClick={fetchPreviousPage}
+                disabled={!hasPrevious}
+                className="px-3 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              
+              <span className="px-3 py-2 text-sm text-gray-600">
+                Page {currentPage + 1} of {totalPages}
+              </span>
+              
+              <button
+                onClick={fetchNextPage}
+                disabled={!hasNext}
+                className="px-3 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+              >
+                <ChevronRight size={16} />
+              </button>
             </div>
-          ))
-        ) : (
+          )}
+        </>
+        )}
+
+        {/* Empty State */}
+        {!isLoading && !error && filteredTopics.length === 0 && (
           <div className="text-center py-12 bg-white border border-gray-200 rounded-lg">
             <MessageCircle size={48} className="mx-auto mb-4 text-gray-300" />
             <p className="text-gray-500 text-lg">
@@ -396,20 +397,35 @@ const AdminTopicsList: React.FC<AdminTopicsListProps> = ({ currentLeader }) => {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{topics.length}</div>
+              <div className="text-2xl font-bold text-blue-600">{totalElements}</div>
               <div className="text-sm text-gray-500">Total Topics</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-green-600">
-                {topics.filter(t => t.replies.length > 5).length}
+                {topics.filter(t => t.replycount > 5).length}
               </div>
               <div className="text-sm text-gray-500">Active Discussions</div>
             </div>
           </div>
         </div>
       </div>
+      
+      {/* Floating Action Button for creating topics */}
+      <FloatingActionButton
+        type="topic"
+        onClick={handleCreateTopic}
+        isVisible={true}
+      />
     </div>
   );
 };
 
 export default AdminTopicsList;
+
+
+
+
+
+
+
+

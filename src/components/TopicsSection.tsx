@@ -1,72 +1,116 @@
 import React, { useState } from 'react';
-import { MessageCircle, TrendingUp } from 'lucide-react';
-import { Topic } from '../types';
+import { MessageCircle, Loader2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { TopicRequestDto, TopicResponseDto } from '../types';
 import { TopicCard } from './TopicCard';
 import { TopicDetail } from './TopicDetail';
 import { getTranslation } from '../i18n/translations';
 import FloatingActionButton from './FloatingActionButton';
+import { CreateTopicForm } from './CreateTopicForm';
+import { useAuth } from '../contexts/AuthContext';
+import { useLoginPrompt } from '../contexts/LoginPromptContext';
+import { API_ENDPOINTS } from '../config/api';
+import { useTopics } from '../hooks/useTopics';
+import { useTopicInteractions } from '../hooks/useTopicInteractions';
+import { useTopicReplies } from '../hooks/useTopicReplies';
+import { createAuthenticatedFetch } from '../utils/apiInterceptor';
 
 interface TopicsSectionProps {
-  topics: Topic[];
   language: string;
   currentUser?: any;
 }
 
-export const TopicsSection: React.FC<TopicsSectionProps> = ({ topics, language, currentUser }) => {
+export const TopicsSection: React.FC<TopicsSectionProps> = ({ language, currentUser }) => {
   const [sortBy, setSortBy] = useState('newest');
   const [showMyTopicsOnly, setShowMyTopicsOnly] = useState(false);
-  const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
-  const [followingTopics, setFollowingTopics] = useState<Set<string>>(new Set(['1', '2']));
+  const [selectedTopic, setSelectedTopic] = useState<TopicResponseDto | null>(null);
+  const [followingTopics, setFollowingTopics] = useState<Set<string>>(new Set());
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const { currentUser: authUser, logout, refreshSession } = useAuth();
+  const { showLoginPrompt } = useLoginPrompt();
+  
+  // Fetch topics from API
+  const {
+    topics,
+    isLoading,
+    error,
+    totalPages,
+    totalElements,
+    currentPage,
+    hasNext,
+    hasPrevious,
+    refetch,
+    fetchNextPage,
+    fetchPreviousPage,
+    goToPage
+  } = useTopics({
+    page: 0,
+    size: 20,
+    sortBy: sortBy === 'newest' ? 'createdAt' : sortBy === 'popular' ? 'upvoteCount' : 'replycount',
+    sortDir: 'desc',
+    enabled: true
+  });
 
-  const trendingHashtags = ['#KigaliBRT', '#DigitalRwanda', '#ClimateChange', '#Agriculture', '#Healthcare', '#Education'];
-
-  const sortedTopics = [...topics]
-    .filter(topic => {
+  // Filter topics based on user preferences
+  const filteredTopics = topics.filter(topic => {
       // Filter by user ownership if enabled
-      if (showMyTopicsOnly && topic.author.id !== currentUser?.id) {
+    if (showMyTopicsOnly && topic.createdBy.id !== currentUser?.id) {
         return false;
       }
       
-      // Filter by regional restrictions
-      if (topic.regionalRestriction && currentUser) {
-        const { level, district, sector, cell } = topic.regionalRestriction;
-        const userLocation = currentUser.location;
-        
-        switch (level) {
-          case 'district':
-            return userLocation.district === district;
-          case 'sector':
-            return userLocation.district === district && userLocation.sector === sector;
-          case 'cell':
-            return userLocation.district === district && 
-                   userLocation.sector === sector && 
-                   userLocation.cell === cell;
-          default:
-            return true;
-        }
-      }
-      
-      return true;
-    })
-    .sort((a, b) => {
-      switch (sortBy) {
-        case 'newest':
-          return b.createdAt.getTime() - a.createdAt.getTime();
-        case 'popular':
-          return (b.votes.length + b.replies.length) - (a.votes.length + a.replies.length);
-        case 'mostReplies':
-          return b.replies.length - a.replies.length;
-        default:
-          return 0;
-      }
-    });
+    // Filter by regional restrictions (if implemented in backend)
+    // For now, show all topics
+    return true;
+  });
 
-  const handleCreateTopic = () => {
-    // Create topic logic would be implemented here
-    console.log('Create topic clicked');
+
+
+  const handleUnauthorized = () => {
+    showLoginPrompt('Your session has expired. Please log in again to continue.');
   };
 
-  const handleTopicClick = (topic: Topic) => {
+  const handleCreateTopic = () => {
+    setShowCreateForm(true);
+  };
+
+  const handleCloseCreateForm = () => {
+    setShowCreateForm(false);
+  };
+
+  const handleForceLogout = (reason?: string) => {
+    console.log('Force logout triggered:', reason);
+    logout();
+    showLoginPrompt(reason || 'Your session has expired. Please log in again.');
+  };
+
+  const handleTopicSubmit = async (topicData: TopicRequestDto) => {
+    try {
+      const authenticatedFetch = createAuthenticatedFetch(handleForceLogout, refreshSession);
+      
+      const response = await authenticatedFetch(API_ENDPOINTS.TOPICS.CREATE, {
+        method: 'POST',
+        body: JSON.stringify(topicData)
+      });
+
+      if (!response) {
+        // Response is null when 401 is handled by interceptor
+        return;
+      }
+
+      if (response.ok) {
+        const createdTopic = await response.json();
+        console.log('Topic created successfully:', createdTopic);
+        setShowCreateForm(false);
+        // Refresh the topics list to show the new topic
+        refetch();
+      } else {
+        console.error('Failed to create topic:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Error creating topic:', error);
+    }
+  };
+
+  const handleTopicClick = (topic: TopicResponseDto) => {
     setSelectedTopic(topic);
   };
 
@@ -74,18 +118,46 @@ export const TopicsSection: React.FC<TopicsSectionProps> = ({ topics, language, 
     setSelectedTopic(null);
   };
 
-  const handleVote = (type: 'up' | 'down') => {
-    // Implement voting logic
-    console.log('Vote:', type);
+  // Get topic interaction functions
+  const { upvoteTopic, downvoteTopic } = useTopicInteractions({ 
+    isAdmin: false, 
+    onUnauthorized: handleUnauthorized 
+  });
+
+  const handleVote = async (type: 'up' | 'down') => {
+    if (!currentUser || !selectedTopic) return;
+    
+    try {
+      if (type === 'up') {
+        const updatedTopic = await upvoteTopic(selectedTopic.id);
+        if (updatedTopic) {
+          // Update the selected topic with new voting data
+          setSelectedTopic(updatedTopic);
+          // Refresh the topics list to get updated voting counts
+          await refetch();
+        }
+      } else {
+        const updatedTopic = await downvoteTopic(selectedTopic.id);
+        if (updatedTopic) {
+          // Update the selected topic with new voting data
+          setSelectedTopic(updatedTopic);
+          // Refresh the topics list to get updated voting counts
+          await refetch();
+        }
+      }
+    } catch (error) {
+      console.error(`Failed to ${type}vote topic:`, error);
+    }
   };
 
   const handleFollow = () => {
     if (selectedTopic) {
       const newFollowing = new Set(followingTopics);
-      if (newFollowing.has(selectedTopic.id)) {
-        newFollowing.delete(selectedTopic.id);
+      const topicId = selectedTopic.id.toString();
+      if (newFollowing.has(topicId)) {
+        newFollowing.delete(topicId);
       } else {
-        newFollowing.add(selectedTopic.id);
+        newFollowing.add(topicId);
       }
       setFollowingTopics(newFollowing);
     }
@@ -96,9 +168,16 @@ export const TopicsSection: React.FC<TopicsSectionProps> = ({ topics, language, 
     console.log('Reply:', content, parentId);
   };
 
-  const handleVoteReply = (replyId: string, type: 'up' | 'down') => {
-    // Implement reply voting logic
+  const handleVoteReply = async (replyId: string, type: 'up' | 'down') => {
+    if (!currentUser || !selectedTopic) return;
+    
+    try {
+      // For now, just log the vote - the actual voting will be handled by the TopicDetail component
+      // which has access to the useTopicReplies hook
     console.log('Vote reply:', replyId, type);
+    } catch (error) {
+      console.error(`Failed to ${type}vote reply:`, error);
+    }
   };
 
   // If a topic is selected, show the detail view
@@ -112,7 +191,7 @@ export const TopicsSection: React.FC<TopicsSectionProps> = ({ topics, language, 
         onReply={handleReply}
         onVoteReply={handleVoteReply}
         onFollow={handleFollow}
-        isFollowing={followingTopics.has(selectedTopic.id)}
+        isFollowing={followingTopics.has(selectedTopic.id.toString())}
       />
     );
   }
@@ -163,7 +242,7 @@ export const TopicsSection: React.FC<TopicsSectionProps> = ({ topics, language, 
         <div className="flex justify-between items-center">
           <div>
             <p className="text-sm text-gray-600">
-              {sortedTopics.length} topic{sortedTopics.length !== 1 ? 's' : ''} found
+              {totalElements} topic{totalElements !== 1 ? 's' : ''} found
               {showMyTopicsOnly && currentUser ? ` by ${currentUser.name}` : ''}
             </p>
           </div>
@@ -176,17 +255,73 @@ export const TopicsSection: React.FC<TopicsSectionProps> = ({ topics, language, 
 
         {/* Topics List */}
         <div className="space-y-4">
-          {sortedTopics.length > 0 ? (
-            sortedTopics.map(topic => (
+          {/* Loading State */}
+          {isLoading && (
+            <div className="text-center py-12 bg-white border border-gray-200 rounded-lg">
+              <Loader2 className="mx-auto h-8 w-8 animate-spin text-blue-600 mb-4" />
+              <p className="text-gray-500">Loading topics...</p>
+            </div>
+          )}
+
+          {/* Error State */}
+          {error && !isLoading && (
+            <div className="text-center py-12 bg-white border border-gray-200 rounded-lg">
+              <AlertCircle className="mx-auto h-8 w-8 text-red-600 mb-4" />
+              <p className="text-red-600 mb-2">Failed to load topics</p>
+              <p className="text-gray-500 text-sm mb-4">{error}</p>
+              <button
+                onClick={refetch}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Try Again
+              </button>
+            </div>
+          )}
+
+          {/* Topics List */}
+          {!isLoading && !error && filteredTopics.length > 0 && (
+            <>
+              {filteredTopics.map(topic => (
               <TopicCard
                 key={topic.id}
                 topic={topic}
                 language={language}
                 currentUser={currentUser}
                 onClick={() => handleTopicClick(topic)}
-              />
-            ))
-          ) : (
+                  isAdmin={false}
+                  onUnauthorized={handleUnauthorized}
+                />
+              ))}
+              
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center space-x-2 mt-6">
+                  <button
+                    onClick={fetchPreviousPage}
+                    disabled={!hasPrevious}
+                    className="px-3 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  
+                  <span className="px-3 py-2 text-sm text-gray-600">
+                    Page {currentPage + 1} of {totalPages}
+                  </span>
+                  
+                  <button
+                    onClick={fetchNextPage}
+                    disabled={!hasNext}
+                    className="px-3 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Empty State */}
+          {!isLoading && !error && filteredTopics.length === 0 && (
             <div className="text-center py-12 bg-white border border-gray-200 rounded-lg">
               <p className="text-gray-500 text-lg">
                 {showMyTopicsOnly 
@@ -201,22 +336,6 @@ export const TopicsSection: React.FC<TopicsSectionProps> = ({ topics, language, 
 
       {/* Sidebar */}
       <div className="space-y-6">
-        {/* Trending Hashtags */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <div className="flex items-center space-x-2 mb-4">
-            <TrendingUp size={20} className="text-blue-600" />
-            <h3 className="font-semibold text-gray-900">Trending in Rwanda</h3>
-          </div>
-          <div className="space-y-3">
-            {trendingHashtags.map(hashtag => (
-              <div key={hashtag} className="cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
-                <div className="text-blue-600 font-medium">{hashtag}</div>
-                <div className="text-sm text-gray-500">{Math.floor(Math.random() * 100)}k posts</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
         {/* Active Discussions */}
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <div className="flex items-center space-x-2 mb-4">
@@ -227,10 +346,10 @@ export const TopicsSection: React.FC<TopicsSectionProps> = ({ topics, language, 
             {topics.slice(0, 3).map(topic => (
               <div key={topic.id} className="cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
                 <div className="text-sm font-medium text-gray-900 line-clamp-2">
-                  {topic.content.substring(0, 60)}...
+                  {topic.title}
                 </div>
                 <div className="text-xs text-gray-500 mt-1">
-                  {topic.replies.length} replies
+                  {topic.replycount} replies
                 </div>
               </div>
             ))}
@@ -244,6 +363,16 @@ export const TopicsSection: React.FC<TopicsSectionProps> = ({ topics, language, 
           type="topic"
           onClick={handleCreateTopic}
           isVisible={true}
+        />
+      )}
+
+      {/* Create Topic Form */}
+      {showCreateForm && (
+        <CreateTopicForm
+          onClose={handleCloseCreateForm}
+          onSubmit={handleTopicSubmit}
+          isAdmin={false}
+          currentUser={currentUser}
         />
       )}
     </div>

@@ -7,9 +7,9 @@ interface LanguageSwitcherProps {
 }
 
 const languages = [
-  { code: 'en', name: 'English' },
-  { code: 'rw', name: 'Kinyarwanda' },
-  { code: 'fr', name: 'Français' },
+  { code: 'ENGLISH', name: 'English' },
+  { code: 'KINYARWANDA', name: 'Kinyarwanda' },
+  { code: 'FRENCH', name: 'Français' },
 ];
 
 export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({

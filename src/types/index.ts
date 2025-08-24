@@ -1,30 +1,179 @@
+// Types for the application
+
+// Core user and authentication types
 export interface User {
   id: string;
   firstName: string;
   lastName: string;
-  name: string; // Computed property: firstName + lastName
-  email: string;
+  name: string;
   phoneNumber: string;
-  avatar: string;
-  location: {
-    district: string;
-    sector: string;
-    cell: string;
-    village: string;
-  };
-  isGovernment: boolean;
-  department?: string;
-  role: 'citizen' | 'government_official' | 'moderator' | 'admin';
-  verified: boolean;
-  joinedAt: Date;
-  reportedIssues?: string[]; // Array of issue IDs
-  createdTopics?: string[]; // Array of topic IDs
+  email: string;
+  profileUrl?: string;
+  role: Role;
+  location?: Location;
+  language?: Language;
 }
 
+export interface Role {
+  id: string;
+  name: string;
+  description?: string;
+}
+
+export interface Location {
+  district: string;
+  sector: string;
+  cell: string;
+  village: string;
+  latitude?: number;
+  longitude?: number;
+}
+
+// Authentication types
+export interface AuthResponseDto {
+  accessToken: string;
+  refreshToken: string;
+  user: UserResponseDto;
+}
+
+export interface TokenRefreshRequestDto {
+  refreshToken: string;
+}
+
+export interface TokenRefreshResponseDto {
+  accessToken: string;
+  refreshToken: string;
+}
+
+export interface UserResponseDto {
+  id: number;
+  firstName: string;
+  lastName: string;
+  middleName?: string;
+  phoneNumber: string;
+  email: string;
+  profileUrl?: string;
+  role: UserRole;
+  location?: LocationResponseDto;
+}
+
+export interface LocationResponseDto {
+  id: number;
+  district: string;
+  sector?: string;
+  cell?: string;
+  village?: string;
+  latitude?: number;
+  longitude?: number;
+}
+
+export interface LoginRequestDto {
+  emailOrPhone: string;
+  password: string;
+}
+
+export interface RegisterRequestDto {
+  email: string;
+  password: string;
+  phoneNumber: string;
+  firstName: string;
+  lastName: string;
+  middleName?: string;
+}
+
+// Profile completion types
+export interface UserProfileCompletionRequestDto {
+  profileUrl?: string;
+  level: Level;
+  location: LocationRequestDto;
+}
+
+export interface LocationRequestDto {
+  district?: string;
+  sector?: string;
+  cell?: string;
+  village?: string;
+  latitude?: number;
+  longitude?: number;
+}
+
+// New response-related types
+export enum PostType {
+  ISSUE = 'ISSUE',
+  RESPONSE = 'RESPONSE',
+  COMMENT = 'COMMENT',
+  TOPIC = 'TOPIC',
+  TOPIC_REPLY = 'TOPIC_REPLY',
+  POLL = 'POLL',
+  SURVEY = 'SURVEY',
+  SURVEY_QUESTION = 'SURVEY_QUESTION'
+}
+
+export enum ResponseStatus {
+  FOLLOW_UP = 'FOLLOW_UP',
+  IN_PROGRESS = 'IN_PROGRESS',
+  RESOLVED = 'RESOLVED',
+  REJECTED = 'REJECTED',
+  ESCALATED = 'ESCALATED'
+}
+
+export enum AttachmentType {
+  PHOTO = 'PHOTO',
+  PDF = 'PDF',
+  AUDIO = 'AUDIO',
+  VIDEO = 'VIDEO'
+}
+
+export interface AttachmentRequestDto {
+  url: string;
+  type: AttachmentType;
+  description?: string;
+}
+
+export interface AttachmentResponseDto {
+  id: number;
+  url: string;
+  type: AttachmentType;
+  description?: string;
+  uploadedAt?: string;
+}
+
+export interface ResponseRequestDto {
+  postType: PostType;
+  postId: number;
+  message?: string;
+  language?: Language;
+  isPublic?: boolean;
+  status?: ResponseStatus;
+  attachments?: AttachmentRequestDto[];
+}
+
+export interface ResponseResponseDto {
+  id: number;
+  postType: PostType;
+  postId: number;
+  responder: UserResponseDto;
+  message?: string;
+  language?: Language;
+  isPublic: boolean;
+  createdAt: string;
+  status: ResponseStatus;
+  attachments: AttachmentResponseDto[];
+  comments: CommentResponseDto[];
+  children?: ResponseResponseDto[]; // Child responses (responses to responses)
+  parent?: ResponseResponseDto; // Parent response
+  upvoteCount: number;
+  downvoteCount: number;
+  hasUpvoted: boolean;
+  hasDownvoted: boolean;
+  averageRating?: number; // Rating from 1-5, null if user hasn't rated yet
+}
+
+// Core data types
 export interface Vote {
   id: string;
   userId: string;
-  targetId: string; // ID of the item being voted on
+  targetId: string;
   targetType: 'issue' | 'government_reply' | 'comment';
   type: 'up' | 'down';
   createdAt: Date;
@@ -39,22 +188,44 @@ export interface Attachment {
   size: number;
   uploadedBy: string;
   uploadedAt: Date;
-  thumbnail?: string; // For videos and documents
+  thumbnail?: string;
+}
+
+// Comment types
+export interface CommentRequestDto {
+  text: string;
+  isPrivate: boolean;
+  userId: number;
+  postId: number;
+  postType: PostType;
 }
 
 export interface Comment {
-  id: string;
+  id: number;
   content: string;
-  author: User;
-  createdAt: Date;
-  updatedAt: Date;
-  votes: Vote[];
-  replies: Comment[];
-  parentId?: string; // For nested comments
-  targetId: string; // ID of issue or government reply this comment belongs to
-  targetType: 'issue' | 'government_reply';
-  isModerated: boolean;
-  moderationReason?: string;
+  createdAt: string;
+  updatedAt: string;
+  postId: number;
+  postType: PostType;
+  user: UserResponseDto;
+  children: Comment[];
+  hasvoted: boolean;
+  upvotes: number;
+  downvotes: number;
+}
+
+export interface CommentResponseDto {
+  id: number;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+  postId: number;
+  postType: PostType;
+  user: UserResponseDto;
+  children: CommentResponseDto[];
+  hasvoted: boolean;
+  upvotes: number;
+  downvotes: number;
 }
 
 export interface GovernmentReply {
@@ -70,14 +241,13 @@ export interface GovernmentReply {
   isOfficial: boolean;
   status: 'draft' | 'published' | 'archived';
   priority: 'low' | 'medium' | 'high' | 'urgent';
-  replyType: 'followup' | 'progress' | 'resolve' | 'escalation'; // New reply type system
-  responseStatus: 'final' | 'followup'; // Internal status - not visible to public
-  followUpResponse?: UserFollowUpResponse; // Response from issue creator if responseStatus is 'followup'
-  escalationReason?: string; // For escalation type replies
-  escalationTarget?: string; // ID of the leader/level this is escalated to
+  replyType: 'followup' | 'progress' | 'resolve' | 'escalation';
+  responseStatus: 'final' | 'followup';
+  followUpResponse?: UserFollowUpResponse;
+  escalationReason?: string;
+  escalationTarget?: string;
 }
 
-// New interface for user follow-up responses to government inquiries
 export interface UserFollowUpResponse {
   id: string;
   content: string;
@@ -85,53 +255,207 @@ export interface UserFollowUpResponse {
   governmentReplyId: string;
   createdAt: Date;
   attachments?: Attachment[];
-  isPrivate: boolean; // Always true - only visible to issue creator and government
+  isPrivate: boolean;
 }
 
-export interface Issue {
-  id: string;
+// Issue types
+export type IssueType = 'POSITIVE_REVIEW' | 'NEGATIVE_ISSUE' | 'SUGGESTION';
+
+export interface IssueRequestDto {
   title: string;
-  content: string;
-  author: User;
-  createdAt: Date;
-  updatedAt: Date;
-  status: 'open' | 'under_review' | 'in_progress' | 'resolved' | 'closed';
+  description: string;
+  language: Language;
+  issueType: IssueType;
   category: string;
-  votes: Vote[];
-  followers: string[];
-  comments: Comment[];
-  governmentReplies: GovernmentReply[];
-  attachments?: Attachment[];
-  linkedIssues: string[];
-  tags: string[];
-  priority: 'low' | 'medium' | 'high' | 'urgent';
-  level: 'district' | 'sector' | 'cell' | 'village'; // Administrative level
-  location?: {
-    district: string;
-    sector: string;
-    coordinates?: { lat: number; lng: number };
-  };
-  isModerated: boolean;
-  moderationReason?: string;
-  viewCount: number;
+  isPrivate?: boolean;
+  createdById: number;
+  assignedToId?: number;
+  location?: LocationRequestDto;
+  attachments?: AttachmentRequestDto[];
 }
 
+// Pagination types
+export interface Page<T> {
+  content: T[];
+  pageable: {
+    pageNumber: number;
+    pageSize: number;
+    sort: {
+      sorted: boolean;
+      unsorted: boolean;
+      empty: boolean;
+    };
+  };
+  totalElements: number;
+  totalPages: number;
+  last: boolean;
+  first: boolean;
+  numberOfElements: number;
+  size: number;
+  number: number;
+  sort: {
+    sorted: boolean;
+    unsorted: boolean;
+    empty: boolean;
+  };
+  empty: boolean;
+}
+
+// Backend DTO types
+export interface IssueResponseDto {
+  id: number;
+  title: string;
+  description: string;
+  language: Language;
+  category: string;
+  issueType: IssueType;
+  ticketId: string;
+  createdBy: UserResponseDto;
+  assignedTo?: UserResponseDto;
+  location?: LocationResponseDto;
+  attachments: AttachmentResponseDto[];
+  responses: ResponseResponseDto[];
+  comments: CommentResponseDto[];
+  parent?: IssueResponseDto;
+  links: IssueResponseDto[];
+  status: string;
+  urgency: string;
+  level: string | null;
+  likes: number;
+  followers: number;
+  likedByUser: boolean; // Backend returns this field name
+  followedByUser: boolean; // Backend returns this field name
+  private: boolean; // Backend returns this field name
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CommentResponseDto {
+  id: number;
+  content: string;
+  author: UserResponseDto;
+  createdAt: string;
+  updatedAt: string;
+  parentId?: number;
+  replies: CommentResponseDto[];
+  likes: number;
+  isLikedByUser: boolean;
+}
+
+// Frontend Issue interface (compatible with backend DTO)
+export interface Issue {
+  id: number;
+  title: string;
+  description: string;
+  language: Language;
+  category: string;
+  issueType: IssueType;
+  ticketId?: string;
+  createdBy: UserResponseDto;
+  assignedTo?: UserResponseDto;
+  location: LocationResponseDto;
+  attachments: AttachmentResponseDto[];
+  responses: ResponseResponseDto[];
+  comments: CommentResponseDto[];
+  parent?: Issue;
+  links?: Issue[];
+  status: string; // Use string to match backend DTO
+  urgency: string; // Use string to match backend DTO
+  level: string | null;
+  likes: number;
+  followers: number;
+  likedByUser: boolean; // Match backend field name
+  followedByUser: boolean; // Match backend field name
+  private: boolean; // Match backend field name
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Topic types
 export interface Topic {
   id: string;
-  content: string;
+  title: string;
+  description: string;
+  content?: string; // Legacy field for backward compatibility
   author: User;
   createdAt: Date;
   votes: Vote[];
   followers: string[];
   replies: TopicReply[];
   attachments?: Attachment[];
-  hashtags: string[];
+  tags: string[];
+  hashtags?: string[]; // Legacy field for backward compatibility
+  language: Language;
   regionalRestriction?: {
     level: 'district' | 'sector' | 'cell';
     district?: string;
     sector?: string;
     cell?: string;
   };
+  focusLocation?: LocationRequestDto;
+  upvoteCount?: number;
+  downvoteCount?: number;
+  followerCount?: number;
+  replycount?: number;
+}
+
+export interface TopicRequestDto {
+  title: string;
+  description: string;
+  tags?: string[];
+  language: Language;
+  focusLocation?: LocationRequestDto;
+  taggedUserIds?: number[];
+  attachments?: AttachmentRequestDto[];
+}
+
+export interface TopicResponseDto {
+  id: number;
+  title: string;
+  description: string;
+  tags: string[];
+  createdBy: UserResponseDto;
+  language: Language;
+  focusLocation?: LocationResponseDto;
+  taggedUsers: UserResponseDto[];
+  createdAt: string;
+  updatedAt: string;
+  focusLevel: string;
+  location: LocationResponseDto;
+  attachments: AttachmentResponseDto[];
+  upvoteCount: number;
+  downvoteCount: number;
+  hasUpvoted: boolean;
+  hasDownvoted: boolean;
+  followerCount: number;
+  hasRegionalFocus: boolean;
+  replycount: number;
+}
+
+export interface PaginatedTopicsResponse {
+  content: TopicResponseDto[];
+  pageable: {
+    pageNumber: number;
+    pageSize: number;
+    sort: {
+      empty: boolean;
+      sorted: boolean;
+      unsorted: boolean;
+    };
+  };
+  totalElements: number;
+  totalPages: number;
+  last: boolean;
+  first: boolean;
+  size: number;
+  number: number;
+  sort: {
+    empty: boolean;
+    sorted: boolean;
+    unsorted: boolean;
+  };
+  numberOfElements: number;
+  empty: boolean;
 }
 
 export interface TopicReply {
@@ -145,6 +469,145 @@ export interface TopicReply {
   parentId?: string;
 }
 
+// New API DTOs for topic replies
+export interface TopicReplyRequestDto {
+  description: string;
+  tags?: string[];
+  language: Language;
+  topicId: number;
+  parentReplyId?: number;
+  attachments?: AttachmentRequestDto[];
+}
+
+export interface TopicReplyResponseDto {
+  id: number;
+  description: string;
+  tags: string[];
+  createdBy: UserResponseDto;
+  language: Language;
+  topicId: number;
+  parentReplyId?: number;
+  childReplies: TopicReplyResponseDto[];
+  createdAt: string;
+  updatedAt: string;
+  attachments: AttachmentResponseDto[];
+  upvoteCount: number;
+  downvoteCount: number;
+  replyDepth: number;
+  hasUpvoted: boolean;
+  hasDownvoted: boolean;
+}
+
+// Announcement DTOs
+export interface AnnouncementRequestDto {
+  title: string;
+  description: string;
+  language: Language;
+  endTime: string; // ISO string
+  attachments?: AttachmentRequestDto[];
+}
+
+export interface AnnouncementResponseDto {
+  id: number;
+  title: string;
+  description: string;
+  language: Language;
+  viewCount: number;
+  hasViewed: boolean;
+  attachments: AttachmentResponseDto[];
+  createdAt: string;
+  updatedAt: string;
+  endTime: string;
+  active: boolean;
+}
+
+export interface PaginatedAnnouncementsResponse {
+  content: AnnouncementResponseDto[];
+  pageable: {
+    pageNumber: number;
+    pageSize: number;
+    sort: {
+      empty: boolean;
+      sorted: boolean;
+      unsorted: boolean;
+    };
+  };
+  totalElements: number;
+  totalPages: number;
+  last: boolean;
+  first: boolean;
+  size: number;
+  number: number;
+  sort: {
+    empty: boolean;
+    sorted: boolean;
+    unsorted: boolean;
+  };
+  numberOfElements: number;
+  empty: boolean;
+}
+
+// Dashboard types
+export interface LeaderDashboardData {
+  leaderInfo: {
+    id: number;
+    name: string;
+  };
+  issueMetrics: {
+    totalAssigned: number;
+    resolved: number;
+    inProgress: number;
+    pending: number;
+    escalated: number;
+    resolutionRate: number;
+  };
+  topicMetrics: {
+    created: number;
+    participating: number;
+    following: number;
+    totalUpvotesReceived: number;
+  };
+  announcementMetrics: {
+    created: number;
+    totalViews: number;
+    averageViews: number;
+    active: number;
+  };
+  responseMetrics: {
+    totalGiven: number;
+    recentResponses: number;
+    averageResponseTimeHours: number;
+  };
+  performanceScores: Record<string, any>;
+}
+
+export interface PaginatedTopicRepliesResponse {
+  content: TopicReplyResponseDto[];
+  pageable: {
+    pageNumber: number;
+    pageSize: number;
+    sort: {
+      empty: boolean;
+      sorted: boolean;
+      unsorted: boolean;
+    };
+  };
+  totalElements: number;
+  totalPages: number;
+  last: boolean;
+  first: boolean;
+  size: number;
+  number: number;
+  sort: {
+    empty: boolean;
+    sorted: boolean;
+    unsorted: boolean;
+  };
+  numberOfElements: number;
+  empty: boolean;
+}
+
+// Announcement types
 export interface Announcement {
   id: string;
   title: string;
@@ -156,9 +619,10 @@ export interface Announcement {
   attachments?: Attachment[];
   targetAudience: string[];
   expiresAt?: Date;
-  readBy: string[]; // Array of user IDs who have read this announcement
+  readBy: string[];
 }
 
+// Notification types
 export interface Notification {
   id: string;
   userId: string;
@@ -171,14 +635,24 @@ export interface Notification {
   createdAt: Date;
 }
 
-export type Language = 'en' | 'rw' | 'fr';
+// Language and translation types
+export type Language = 'ENGLISH' | 'KINYARWANDA' | 'FRENCH';
+
+export type Level = 'CELL' | 'SECTOR' | 'DISTRICT';
+
+export type UserRole = 'CITIZEN' | 'DISTRICT_LEADER' | 'SECTOR_LEADER' | 'CELL_LEADER' | 'ADMIN';
+
+export type Urgency = 'LOW' | 'MEDIUM' | 'URGENT';
+
+export type IssueStatus = 'RECEIVED' | 'ESCALATED' | 'WAITING_FOR_USER_RESPONSE' | 'CLOSED' | 'OVERDUE' | 'RESOLVED';
 
 export interface Translation {
-  en: string;
-  rw: string;
-  fr: string;
+  ENGLISH: string;
+  KINYARWANDA: string;
+  FRENCH: string;
 }
 
+// Admin and moderation types
 export interface ModerationAction {
   id: string;
   moderatorId: string;
@@ -189,7 +663,6 @@ export interface ModerationAction {
   createdAt: Date;
 }
 
-// Admin/Leader specific types
 export interface Leader {
   id: string;
   firstName: string;
@@ -207,13 +680,14 @@ export interface Leader {
   department: string;
   verified: boolean;
   joinedAt: Date;
+  language?: Language;
 }
 
 export interface IssueAssignment {
   id: string;
   issueId: string;
-  assignedTo: string; // Leader ID
-  assignedBy: string; // Who assigned it
+  assignedTo: string;
+  assignedBy: string;
   assignedAt: Date;
   status: 'pending' | 'in_progress' | 'resolved' | 'escalated' | 'closed';
   priority: 'low' | 'medium' | 'high' | 'urgent';
@@ -225,7 +699,7 @@ export interface EscalationAction {
   id: string;
   issueId: string;
   fromLeader: string;
-  toLeader?: string; // null if escalating up
+  toLeader?: string;
   escalationType: 'up' | 'down' | 'lateral';
   reason: string;
   createdAt: Date;
@@ -233,20 +707,20 @@ export interface EscalationAction {
 }
 
 export interface FileUploadConfig {
-  maxSize: number; // in bytes
+  maxSize: number;
   allowedTypes: string[];
   maxFiles: number;
 }
 
-// Survey interfaces
+// Survey types
 export interface SurveyQuestion {
   id: string;
   type: 'multiple_choice' | 'short_text' | 'long_text' | 'checkbox' | 'radio' | 'rating' | 'yes_no';
   title: string;
   description?: string;
   required: boolean;
-  options?: string[]; // For multiple choice, radio, checkbox
-  maxRating?: number; // For rating questions (1-5, 1-10, etc.)
+  options?: string[];
+  maxRating?: number;
 }
 
 export interface SurveyResponse {
@@ -265,19 +739,15 @@ export interface Survey {
   author: User;
   createdAt: Date;
   updatedAt: Date;
-  status: 'draft' | 'active' | 'closed' | 'archived';
   questions: SurveyQuestion[];
   responses: SurveyResponse[];
-  settings: {
-    allowAnonymous: boolean;
-    requireLogin: boolean;
-    showResults: boolean;
-    allowMultipleResponses: boolean;
-    expiresAt?: Date;
-  };
-  attachments?: Attachment[];
-  category: 'public_opinion' | 'community_feedback' | 'government_survey' | 'research' | 'poll';
+  isActive: boolean;
+  expiresAt?: Date;
   targetAudience: string[];
-  isPublic: boolean;
-  viewCount: number;
+  regionalRestriction?: {
+    level: 'district' | 'sector' | 'cell';
+    district?: string;
+    sector?: string;
+    cell?: string;
+  };
 }

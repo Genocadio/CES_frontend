@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { User } from '../types';
+import CloudinaryUpload from './CloudinaryUpload';
+import { cloudinaryPresets } from '../config/cloudinary';
 
 interface UserFormProps {
   user?: User;
@@ -9,12 +12,13 @@ interface UserFormProps {
 }
 
 const UserForm: React.FC<UserFormProps> = ({ user, onSave, onCancel, isEditing = false }) => {
+  const { completeProfile } = useAuth();
   const [formData, setFormData] = useState({
     firstName: user?.firstName || '',
     lastName: user?.lastName || '',
     email: user?.email || '',
     phoneNumber: user?.phoneNumber || '',
-    avatar: user?.avatar || '',
+    profileImage: user?.profileUrl || '',
     location: {
       district: user?.location?.district || '',
       sector: user?.location?.sector || '',
@@ -23,7 +27,9 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSave, onCancel, isEditing =
     }
   });
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [errors, setFormErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   const rwandanDistricts = [
     'Gasabo', 'Kicukiro', 'Nyarugenge', 'Bugesera', 'Gatsibo',
@@ -73,23 +79,52 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSave, onCancel, isEditing =
       newErrors.village = 'Village is required';
     }
 
-    setErrors(newErrors);
+    setFormErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validateForm()) {
       return;
     }
 
-    const userData = {
-      ...formData,
-      name: `${formData.firstName} ${formData.lastName}`
-    };
+    setIsSubmitting(true);
+    setSubmitError('');
 
-    onSave(userData);
+    try {
+      // Prepare profile completion data
+      const profileData = {
+        profileUrl: hasValidProfileImage() ? formData.profileImage : undefined,
+        level: 'CELL' as any, // Temporary fix - citizens shouldn't need level
+        location: {
+          district: formData.location.district,
+          sector: formData.location.sector,
+          cell: formData.location.cell,
+          village: formData.location.village
+        }
+      };
+
+      // Call the API to complete profile
+      const success = await completeProfile(profileData);
+      
+      if (success) {
+        // Call the original onSave with the updated data
+        const userData = {
+          ...formData,
+          name: `${formData.firstName} ${formData.lastName}`,
+          profileUrl: hasValidProfileImage() ? formData.profileImage : undefined
+        };
+        onSave(userData);
+      } else {
+        setSubmitError('Failed to complete profile. Please try again.');
+      }
+    } catch (error) {
+      setSubmitError('An error occurred while completing your profile.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -111,11 +146,23 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSave, onCancel, isEditing =
 
     // Clear error when user starts typing
     if (errors[field]) {
-      setErrors(prev => ({
+      setFormErrors(prev => ({
         ...prev,
         [field]: ''
       }));
     }
+  };
+
+  // Get initials for display
+  const getInitials = () => {
+    const first = formData.firstName.charAt(0).toUpperCase();
+    const last = formData.lastName.charAt(0).toUpperCase();
+    return first + last;
+  };
+
+  // Check if profile image is valid
+  const hasValidProfileImage = () => {
+    return formData.profileImage && formData.profileImage.trim() !== '';
   };
 
   return (
@@ -203,17 +250,72 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSave, onCancel, isEditing =
             </div>
 
             <div className="md:col-span-2">
-              <label htmlFor="avatar" className="block text-sm font-medium text-gray-700 mb-1">
-                Profile Picture URL
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Profile Picture
               </label>
-              <input
-                type="url"
-                id="avatar"
-                value={formData.avatar}
-                onChange={(e) => handleInputChange('avatar', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                placeholder="https://example.com/profile-picture.jpg"
-              />
+              
+              {/* Current Profile Display */}
+              <div className="bg-gray-50 rounded-lg p-4 mb-4 border border-gray-200">
+                <div className="flex items-center space-x-4">
+                  {hasValidProfileImage() ? (
+                    <div className="relative">
+                      <img
+                        src={formData.profileImage}
+                        alt="Profile"
+                        className="w-20 h-20 rounded-full object-cover border-2 border-gray-200 shadow-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, profileImage: '' }))}
+                        className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 transition-colors shadow-sm"
+                        title="Remove profile picture"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-2xl font-bold border-2 border-gray-200 shadow-sm">
+                      {getInitials()}
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-700 mb-1">
+                      {hasValidProfileImage() ? 'Current Profile Picture' : 'Profile Picture'}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      {hasValidProfileImage() ? 'Your profile picture is set and will be displayed to other users' : 'No profile picture set yet'}
+                    </p>
+                    {!hasValidProfileImage() && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Your initials ({getInitials()}) will be displayed until you upload a picture
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Profile Picture Upload */}
+              <div className="bg-white border border-gray-300 rounded-lg p-4">
+                <CloudinaryUpload
+                  config={cloudinaryPresets.profilePictures()}
+                  onUploadSuccess={(uploadedFiles) => {
+                    if (uploadedFiles && Array.isArray(uploadedFiles) && uploadedFiles.length > 0) {
+                      setFormData(prev => ({
+                        ...prev,
+                        profileImage: uploadedFiles[0].url
+                      }));
+                    }
+                  }}
+                  onUploadError={(error) => console.error('Profile picture upload error:', error)}
+                  multiple={false}
+                  placeholder="Click to upload profile picture"
+                  accept=".jpg,.jpeg,.png,.gif"
+                  showPreview={false}
+                />
+                <p className="text-xs text-gray-500 mt-2 text-center">
+                  Supported formats: JPG, PNG, GIF • Max size: 2MB
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -307,10 +409,13 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSave, onCancel, isEditing =
           <button
             type="submit"
             className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            disabled={isSubmitting}
           >
             {isEditing ? 'Update Profile' : 'Create Profile'}
+            {isSubmitting && <span className="ml-2">...</span>}
           </button>
         </div>
+        {submitError && <p className="text-red-500 text-xs mt-2 text-center">{submitError}</p>}
       </form>
     </div>
   );

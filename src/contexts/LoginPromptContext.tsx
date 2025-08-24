@@ -26,6 +26,7 @@ export const LoginPromptProvider: React.FC<LoginPromptProviderProps> = ({ childr
   const [showPrompt, setShowPrompt] = useState(false);
   const [promptMessage, setPromptMessage] = useState<string>('');
   const [onSuccessCallback, setOnSuccessCallback] = useState<(() => void) | null>(null);
+  const [isShowingPrompt, setIsShowingPrompt] = useState(false);
   const { isAuthenticated } = useAuth();
 
   const showLoginPrompt = (message = 'Please log in to continue', onSuccess?: () => void) => {
@@ -35,6 +36,13 @@ export const LoginPromptProvider: React.FC<LoginPromptProviderProps> = ({ childr
       return;
     }
     
+    // Prevent multiple prompts from being shown simultaneously
+    if (isShowingPrompt) {
+      console.log('Login prompt already showing, ignoring duplicate call');
+      return;
+    }
+    
+    setIsShowingPrompt(true);
     setPromptMessage(message);
     setOnSuccessCallback(() => onSuccess || null);
     setShowPrompt(true);
@@ -44,6 +52,7 @@ export const LoginPromptProvider: React.FC<LoginPromptProviderProps> = ({ childr
     setShowPrompt(false);
     setPromptMessage('');
     setOnSuccessCallback(null);
+    setIsShowingPrompt(false);
   };
 
   const handleLoginSuccess = () => {
@@ -64,19 +73,22 @@ export const LoginPromptProvider: React.FC<LoginPromptProviderProps> = ({ childr
       {showPrompt && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-900">Login Required</h2>
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Login Required</h2>
+                <p className="text-sm text-gray-600 mt-1">{promptMessage}</p>
+              </div>
               <button
                 onClick={hideLoginPrompt}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
-                <X size={24} />
+                <X size={20} />
               </button>
             </div>
             
-            <div className="p-6">
-              <p className="text-gray-600 mb-6">{promptMessage}</p>
+            <div className="p-4">
               <Login 
+                language="ENGLISH"
                 onSuccess={handleLoginSuccess}
                 onCancel={hideLoginPrompt}
                 isModal={true}
