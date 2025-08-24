@@ -4,6 +4,10 @@ A modern React TypeScript frontend application for the Citizen Engagement System
 
 ## 🚀 Quick Start
 
+### Live Application Access
+- **Citizen Portal**: [https://ces-frontend-zeta.vercel.app/](https://ces-frontend-zeta.vercel.app/)
+- **Leader/Admin Portal**: [https://ces-frontend-zeta.vercel.app/admin](https://ces-frontend-zeta.vercel.app/admin)
+
 ### Prerequisites
 - **Node.js**: 18.x or higher
 - **npm** or **yarn**: Package manager
@@ -109,6 +113,26 @@ VITE_API_BASE_URL=http://localhost:8080  # Backend API base URL
 - **Hot Module Replacement**: Enabled
 - **Optimization**: Excludes lucide-react from dependency optimization
 
+## 🌐 Live Application Access
+
+### Citizen Engagement Portal
+The Citizen Engagement System is live and accessible to the public:
+
+- **Main Application**: [https://ces-frontend-zeta.vercel.app/](https://ces-frontend-zeta.vercel.app/)
+  - Citizen registration and authentication
+  - Issue reporting and tracking
+  - Topic discussions and participation
+  - Government response viewing and rating
+
+### Administrative Access
+For leaders and administrators:
+
+- **Admin Portal**: [https://ces-frontend-zeta.vercel.app/admin](https://ces-frontend-zeta.vercel.app/admin)
+  - Issue management and oversight
+  - Survey creation and management
+  - Announcement publishing
+  - User account management
+
 ## 🌐 Backend Integration
 
 This frontend connects to a Spring Boot backend application. For backend setup and API documentation, see:
@@ -152,9 +176,10 @@ The frontend expects the following backend endpoints:
 - **Government Responses**: View and rate official responses
 - **Multi-language Support**: English, Kinyarwanda, and French
 - **Location-based Services**: Rwandan administrative structure support
+- **Easy Access**: Available at [https://ces-frontend-zeta.vercel.app/](https://ces-frontend-zeta.vercel.app/)
 
 ### Admin Features
-- **Admin Portal**: Dedicated administrative interface
+- **Admin Portal**: Dedicated administrative interface at [https://ces-frontend-zeta.vercel.app/admin](https://ces-frontend-zeta.vercel.app/admin)
 - **Issue Management**: Track and manage citizen issues
 - **Survey Management**: Create and manage community surveys
 - **Announcement System**: Publish community announcements

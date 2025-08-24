@@ -167,3 +167,4 @@ The rating system provides a comprehensive way for citizens to provide feedback 
 
 The rating data can be used by government officials to improve response quality and track citizen satisfaction over time. The system is designed to be scalable and can easily accommodate future enhancements like rating analytics and detailed feedback collection.
 
+
