@@ -111,13 +111,8 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSave, onCancel, isEditing =
       if (success) {
         // Show success state
         setIsSuccess(true);
-        // Call the original onSave with the updated data
-        const userData = {
-          ...formData,
-          name: `${formData.firstName} ${formData.lastName}`,
-          profileUrl: hasValidProfileImage() ? formData.profileImage : undefined
-        };
-        onSave(userData);
+        // Don't call onSave to avoid redirect - just show success message
+        // The form will stay visible with success state
       } else {
         setSubmitError('Failed to complete profile. Please try again.');
       }
@@ -178,14 +173,22 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSave, onCancel, isEditing =
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Profile Updated Successfully!</h2>
           <p className="text-gray-600 mb-6">
-            Your profile has been updated successfully. The changes will be reflected immediately.
+            Your profile has been updated successfully. You can continue editing or go back to the main page.
           </p>
-          <button
-            onClick={() => setIsSuccess(false)}
-            className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Continue Editing
-          </button>
+          <div className="flex space-x-3 justify-center">
+            <button
+              onClick={() => setIsSuccess(false)}
+              className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Continue Editing
+            </button>
+            <button
+              onClick={onCancel}
+              className="px-6 py-2 bg-gray-600 text-white font-medium rounded-lg hover:bg-gray-700 transition-colors"
+            >
+              Back to Main Page
+            </button>
+          </div>
         </div>
       </div>
     );

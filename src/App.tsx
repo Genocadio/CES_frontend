@@ -236,9 +236,8 @@ function AppContent() {
                   ...userData,
                   profileComplete: true // Mark profile as complete when location is added
                 };
-                // You would typically call an API to update the user here
-                // For now, we'll just update the local state
-                setCurrentSection('profile');
+                // Don't redirect - let the UserForm handle the success state
+                // The form will show success message and allow continued editing
               }
             }}
             onCancel={() => setCurrentSection('profile')}
