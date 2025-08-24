@@ -9,7 +9,7 @@ export interface User {
   phoneNumber: string;
   email: string;
   profileUrl?: string;
-  role: Role;
+  role: Role | UserRole; // Accept both Role object and UserRole string
   location?: Location;
   language?: Language;
 }

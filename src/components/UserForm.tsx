@@ -30,7 +30,7 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSave, onCancel, isEditing =
   const [errors, setFormErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
-  const [isSuccess, setIsSuccess] = useState(false);
+
 
   const rwandanDistricts = [
     'Gasabo', 'Kicukiro', 'Nyarugenge', 'Bugesera', 'Gatsibo',
@@ -109,10 +109,9 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSave, onCancel, isEditing =
       const success = await completeProfile(profileData);
       
       if (success) {
-        // Show success state
-        setIsSuccess(true);
-        // Don't call onSave to avoid redirect - just show success message
-        // The form will stay visible with success state
+        // Automatically continue editing - don't show success message
+        // Reset form to show updated data and allow further editing
+        // Optionally refresh the form data if needed
       } else {
         setSubmitError('Failed to complete profile. Please try again.');
       }
@@ -160,39 +159,6 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSave, onCancel, isEditing =
   const hasValidProfileImage = () => {
     return formData.profileImage && formData.profileImage.trim() !== '';
   };
-
-  // Show success state
-  if (isSuccess) {
-    return (
-      <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-6">
-        <div className="text-center py-12">
-          <div className="w-16 h-16 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center">
-            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Profile Updated Successfully!</h2>
-          <p className="text-gray-600 mb-6">
-            Your profile has been updated successfully. You can continue editing or go back to the main page.
-          </p>
-          <div className="flex space-x-3 justify-center">
-            <button
-              onClick={() => setIsSuccess(false)}
-              className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Continue Editing
-            </button>
-            <button
-              onClick={onCancel}
-              className="px-6 py-2 bg-gray-600 text-white font-medium rounded-lg hover:bg-gray-700 transition-colors"
-            >
-              Back to Main Page
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-6">

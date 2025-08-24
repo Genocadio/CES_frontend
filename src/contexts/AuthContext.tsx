@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { User, AuthResponseDto, LoginRequestDto, RegisterRequestDto, UserProfileCompletionRequestDto, UserResponseDto, TokenRefreshRequestDto, TokenRefreshResponseDto } from '../types';
+import { User, AuthResponseDto, LoginRequestDto, RegisterRequestDto, UserProfileCompletionRequestDto, UserResponseDto, TokenRefreshRequestDto, TokenRefreshResponseDto, UserRole } from '../types';
 import { API_ENDPOINTS } from '../config/api';
 
 interface AuthContextType {
@@ -268,14 +268,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         // Transform UserResponseDto to User interface
         const user: User = {
-          ...authData.user,
+          id: authData.user.id.toString(),
+          firstName: authData.user.firstName,
+          lastName: authData.user.lastName,
           name: `${authData.user.firstName} ${authData.user.lastName}`,
-          isGovernment: authData.user.role?.name === 'government_official' || authData.user.role?.name === 'admin',
-          verified: true,
-          joinedAt: new Date(),
-          reportedIssues: [],
-          createdTopics: [],
-          profileComplete: isProfileComplete(authData.user)
+          phoneNumber: authData.user.phoneNumber,
+          email: authData.user.email,
+          profileUrl: authData.user.profileUrl,
+          role: authData.user.role,
+          location: authData.user.location ? {
+            district: authData.user.location.district,
+            sector: authData.user.location.sector || '',
+            cell: authData.user.location.cell || '',
+            village: authData.user.location.village || '',
+            latitude: authData.user.location.latitude,
+            longitude: authData.user.location.longitude
+          } : undefined
         };
 
         // Store user and tokens
@@ -313,14 +321,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         // Transform UserResponseDto to User interface
         const user: User = {
-          ...authData.user,
+          id: authData.user.id.toString(),
+          firstName: authData.user.firstName,
+          lastName: authData.user.lastName,
           name: `${authData.user.firstName} ${authData.user.lastName}`,
-          isGovernment: authData.user.role?.name === 'government_official' || authData.user.role?.name === 'admin',
-          verified: true,
-          joinedAt: new Date(),
-          reportedIssues: [],
-          createdTopics: [],
-          profileComplete: isProfileComplete(authData.user)
+          phoneNumber: authData.user.phoneNumber,
+          email: authData.user.email,
+          profileUrl: authData.user.profileUrl,
+          role: authData.user.role,
+          location: authData.user.location ? {
+            district: authData.user.location.district,
+            sector: authData.user.location.sector || '',
+            cell: authData.user.location.cell || '',
+            village: authData.user.location.village || '',
+            latitude: authData.user.location.latitude,
+            longitude: authData.user.location.longitude
+          } : undefined
         };
 
         // Store user and tokens
@@ -406,11 +422,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           email: updatedUserData.email,
           phoneNumber: updatedUserData.phoneNumber,
           profileUrl: updatedUserData.profileUrl,
-          role: {
-            id: updatedUserData.role,
-            name: updatedUserData.role,
-            description: 'User role'
-          },
+          role: updatedUserData.role as UserRole, // Keep as string (UserRole)
           location: updatedUserData.location ? {
             district: updatedUserData.location.district,
             sector: updatedUserData.location.sector || '',
