@@ -72,7 +72,7 @@ export const translations = {
   
   // Registration
   createAccount: { ENGLISH: 'Create your account', KINYARWANDA: 'Fungura konti yawe', FRENCH: 'Créez votre compte' },
-      createAccountSubtitle: { ENGLISH: 'Join Citizen Engagement System to engage with your community', KINYARWANDA: 'Wiyunge na Citizen Engagement System kugirango ufatanye na mugenzuzi wawe', FRENCH: 'Rejoignez Citizen Engagement System pour vous engager avec votre communauté' },
+      createAccountSubtitle: { ENGLISH: 'Join Citizen Engagement Platform to engage with your community', KINYARWANDA: 'Wiyunge na Citizen Engagement Platform kugirango ufatanye na mugenzuzi wawe', FRENCH: 'Rejoignez Citizen Engagement Platform pour vous engager avec votre communauté' },
   firstName: { ENGLISH: 'First Name', KINYARWANDA: 'Izina rya Mbere', FRENCH: 'Prénom' },
   lastName: { ENGLISH: 'Last Name', KINYARWANDA: 'Izina rya Nyuma', FRENCH: 'Nom de famille' },
   middleName: { ENGLISH: 'Middle Name', KINYARWANDA: 'Izina rya Hagati', FRENCH: 'Nom du milieu' },
@@ -128,7 +128,7 @@ export const translations = {
   
   // Profile completion
   profileIncomplete: { ENGLISH: 'Profile Incomplete', KINYARWANDA: 'Umwirondoro Ntuzuzuye', FRENCH: 'Profil Incomplet' },
-      profileIncompleteMessage: { ENGLISH: 'Please complete your profile by adding your location information to get the full Citizen Engagement System experience.', KINYARWANDA: 'Uzuza umwirondoro wawe ukongeramo amakuru y\'ahantu kugirango ubone uburambe bwose bwa Citizen Engagement System.', FRENCH: 'Veuillez compléter votre profil en ajoutant vos informations de localisation pour obtenir l\'expérience complète de Citizen Engagement System.' },
+      profileIncompleteMessage: { ENGLISH: 'Please complete your profile by adding your location information to get the full Citizen Engagement Platform experience.', KINYARWANDA: 'Uzuza umwirondoro wawe ukongeramo amakuru y\'ahantu kugirango ubone uburambe bwose bwa Citizen Engagement Platform.', FRENCH: 'Veuillez compléter votre profil en ajoutant vos informations de localisation pour obtenir l\'expérience complète de Citizen Engagement Platform.' },
   completeProfile: { ENGLISH: 'Complete Profile', KINYARWANDA: 'Uzuza Umwirondoro', FRENCH: 'Compléter le Profil' },
 };
 

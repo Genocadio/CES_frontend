@@ -90,7 +90,7 @@ const AdminRegister = ({ onSuccess, onShowLogin }: AdminRegisterProps) => {
             Create your account
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-                            Join Citizen Engagement System to engage with your community
+                            Join Citizen Engagement Platform to engage with your community
           </p>
         </div>
 

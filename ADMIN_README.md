@@ -92,7 +92,7 @@ This ensures proper administrative boundaries and prevents conflicts in issue ma
 
 ## Technical Notes
 
-- Uses separate authentication system from citizen engagement system
+- Uses separate authentication system from citizen engagement platform
 - Maintains separate data models for leader accounts and issue assignments
 - Implements role-based access control based on administrative level
 - Supports real-time updates on issue status changes

@@ -1,7 +1,7 @@
 # Admin Authentication & Profile Completion System
 
 ## Overview
-The admin portal now uses the same API-based authentication system as the citizen engagement system, with additional profile completion requirements for administrative users.
+The admin portal now uses the same API-based authentication system as the citizen engagement platform, with additional profile completion requirements for administrative users.
 
 ## Key Changes Made
 

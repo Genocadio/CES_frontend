@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Megaphone, Users, Menu, X, Home, Shield, User } from 'lucide-react';
+import { MessageSquare, Megaphone, Users, Menu, X, Home, Shield } from 'lucide-react';
 import { LanguageSwitcher } from './components/LanguageSwitcher';
 import { IssuesSection } from './components/IssuesSection';
 import { TopicsSection } from './components/TopicsSection';
@@ -118,17 +118,17 @@ function AppContent() {
         <header className="bg-white border-b border-gray-200 sticky top-0 z-50 flex-shrink-0">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
-              {/* Logo and Title */}
-              <div className="flex items-center space-x-4">
+              {/* Logo and Title - Hidden on mobile */}
+              <div className="hidden sm:flex items-center space-x-4">
                 <div className="flex-shrink-0">
                   <div className="bg-blue-600 text-white p-2 rounded-lg">
                     <Home size={24} />
                   </div>
                 </div>
-                              <div>
-                <h1 className="text-xl font-bold text-gray-900">Citizen Engagement System</h1>
-                <p className="text-xs text-gray-600">Republic of Rwanda</p>
-              </div>
+                <div>
+                  <h1 className="text-xl font-bold text-gray-900">Citizen Engagement Platform</h1>
+                  <p className="text-xs text-gray-600">Republic of Rwanda</p>
+                </div>
               </div>
 
               {/* Language Switcher */}
@@ -147,10 +147,10 @@ function AppContent() {
                 <Shield size={32} className="text-white" />
               </div>
               <h2 className="mt-6 text-3xl font-bold text-gray-900">
-                Welcome to Citizen Engagement System
+                Welcome to Citizen Engagement Platform
               </h2>
               <p className="mt-2 text-sm text-gray-600">
-                                  Please log in or register to access the citizen engagement system
+                                  Please log in or register to access the citizen engagement platform
               </p>
             </div>
 
@@ -181,7 +181,7 @@ function AppContent() {
         <footer className="bg-white border-t border-gray-200 mt-auto flex-shrink-0">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="text-center">
-                                <p className="text-gray-600">© 2024 Republic of Rwanda - Citizen Engagement System</p>
+                                <p className="text-gray-600">© 2024 Republic of Rwanda - Citizen Engagement Platform</p>
               <p className="text-sm text-gray-500">Empowering citizens through digital engagement</p>
             </div>
           </div>
@@ -278,20 +278,36 @@ function AppContent() {
       <header className="bg-white border-b border-gray-200 sticky top-0 z-50 flex-shrink-0">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            {/* Logo and Title */}
+            {/* Left Side - Mobile Menu Button (mobile) + Logo & Title (desktop) */}
             <div className="flex items-center space-x-4">
-              <div className="flex-shrink-0">
-                <div className="bg-blue-600 text-white p-2 rounded-lg">
-                  <Home size={24} />
+              {/* Mobile Menu Button - Left side on mobile */}
+              {isAuthenticated && (
+                <button
+                  onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                  className="sm:hidden p-2 rounded-md text-gray-700 hover:text-blue-600 hover:bg-gray-100 transition-colors relative"
+                  aria-label="Toggle mobile menu"
+                >
+                  {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+                  {/* Active section indicator */}
+                  <div className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full opacity-75" />
+                </button>
+              )}
+              
+              {/* Logo and Title - Hidden on mobile, visible on desktop */}
+              <div className="hidden sm:flex items-center space-x-4">
+                <div className="flex-shrink-0">
+                  <div className="bg-blue-600 text-white p-2 rounded-lg">
+                    <Home size={24} />
+                  </div>
                 </div>
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">Citizen Engagement System</h1>
-                <p className="text-xs text-gray-600">Republic of Rwanda</p>
+                <div>
+                  <h1 className="text-xl font-bold text-gray-900">Citizen Engagement Platform</h1>
+                  <p className="text-xs text-gray-600">Republic of Rwanda</p>
+                </div>
               </div>
             </div>
 
-            {/* Desktop Navigation - Only show when authenticated */}
+            {/* Center - Desktop Navigation (hidden on mobile) */}
             {isAuthenticated && (
               <>
                 {/* Medium screens: Icons only */}
@@ -338,27 +354,15 @@ function AppContent() {
               </>
             )}
 
-            {/* Language Switcher, User Menu/Login & Mobile Menu */}
+            {/* Right Side - Language Switcher & User Menu */}
             <div className="flex items-center space-x-2 sm:space-x-4">
               <LanguageSwitcher currentLanguage={language} onLanguageChange={setLanguage} />
-
+              
               {/* User Menu - Only show when authenticated */}
               {isAuthenticated && (
                 <UserMenu 
                   onEditProfileClick={() => setCurrentSection('edit-profile')}
                 />
-              )}
-              {/* Mobile Menu Button - Only show when authenticated */}
-              {isAuthenticated && (
-                <button
-                  onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                  className="md:hidden p-2 rounded-md text-gray-700 hover:text-blue-600 hover:bg-gray-100 transition-colors relative"
-                  aria-label="Toggle mobile menu"
-                >
-                  {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-                  {/* Active section indicator */}
-                  <div className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full opacity-75" />
-                </button>
               )}
             </div>
           </div>
@@ -385,7 +389,7 @@ function AppContent() {
                   </div>
                   <div>
                     <h2 className="text-lg font-semibold text-gray-900">Menu</h2>
-                    <p className="text-xs text-gray-600">Citizen Engagement System</p>
+                    <p className="text-xs text-gray-600">Citizen Engagement Platform</p>
                   </div>
                 </div>
                 <button
@@ -398,55 +402,33 @@ function AppContent() {
               
               {/* Navigation Items */}
               <div className="p-4 space-y-2">
-                {navigation.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => {
-                        setCurrentSection(item.id as Section);
-                        setIsMobileMenuOpen(false);
-                      }}
+              {navigation.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setCurrentSection(item.id as Section);
+                      setIsMobileMenuOpen(false);
+                    }}
                       className={`w-full flex items-center space-x-3 py-3 px-4 rounded-lg text-base font-medium transition-all duration-200 ${
-                        currentSection === item.id
+                      currentSection === item.id
                           ? 'bg-blue-100 text-blue-700 shadow-sm'
                           : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
-                      }`}
-                    >
+                    }`}
+                  >
                       <Icon size={20} />
-                      <span>{item.name}</span>
+                    <span>{item.name}</span>
                       {currentSection === item.id && (
                         <div className="ml-auto w-2 h-2 bg-blue-600 rounded-full" />
                       )}
-                    </button>
-                  );
-                })}
-              </div>
-              
-              {/* User Section */}
-              <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 bg-gray-50">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                    <User size={20} className="text-blue-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">
-                      {currentUser?.firstName} {currentUser?.lastName}
-                    </p>
-                    <p className="text-xs text-gray-600">Citizen</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => {
-                    setCurrentSection('edit-profile');
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className="w-full mt-3 px-4 py-2 text-sm font-medium text-blue-600 bg-white border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
-                >
-                  Edit Profile
-                </button>
-              </div>
+                  </button>
+                );
+              })}
             </div>
+              
+
+          </div>
           </>
         )}
       </header>
@@ -455,12 +437,12 @@ function AppContent() {
       <main className="flex-1 max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 xl:px-8 py-6 sm:py-8 w-full">
         {/* Profile Completion Banner - Only show when authenticated */}
         {isAuthenticated && (
-          <ProfileCompletionBanner
-            language={language}
-            isVisible={showProfileBanner}
-            onDismiss={() => setShowProfileBanner(false)}
-            onCompleteProfile={() => setCurrentSection('edit-profile')}
-          />
+        <ProfileCompletionBanner
+          language={language}
+          isVisible={showProfileBanner}
+          onDismiss={() => setShowProfileBanner(false)}
+          onCompleteProfile={() => setCurrentSection('edit-profile')}
+        />
         )}
         {renderContent()}
       </main>
