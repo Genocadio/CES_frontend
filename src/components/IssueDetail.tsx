@@ -1328,17 +1328,18 @@ export const IssueDetail: React.FC<IssueDetailProps> = ({
               </div>
 
               <div className="flex items-center space-x-3">
-                {!isIssueOwner() && (
+                {!isIssueOwner() && !issue.followedByUser && (
                   <button
-                    onClick={() => handleIssueFollow(issue.id, issue.followedByUser ? 'unfollow' : 'follow')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      issue.followedByUser
-                        ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                    onClick={() => handleIssueFollow(issue.id, 'follow')}
+                    className="px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-gray-100 text-gray-700 hover:bg-gray-200"
                   >
-                    {issue.followedByUser ? 'Following' : 'Follow'}
+                    Follow
                   </button>
+                )}
+                {!isIssueOwner() && issue.followedByUser && (
+                  <span className="px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 rounded-lg">
+                    Following
+                  </span>
                 )}
                 {isIssueOwner() && (
                   <span className="text-sm text-gray-500 px-3 py-2">

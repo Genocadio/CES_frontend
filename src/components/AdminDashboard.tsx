@@ -98,7 +98,7 @@ const AdminDashboard = () => {
         return (
           <div className="space-y-6">
             {/* Profile Header */}
-            <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white rounded-lg shadow p-6">
               <div className="flex items-center space-x-6">
                 {currentLeader.avatar ? (
                   <img
@@ -111,7 +111,7 @@ const AdminDashboard = () => {
                     {currentLeader.firstName.charAt(0).toUpperCase()}{currentLeader.lastName.charAt(0).toUpperCase()}
                   </div>
                 )}
-                <div>
+              <div>
                   <h2 className="text-3xl font-bold text-gray-900">{currentLeader.name}</h2>
                   <p className="text-lg text-gray-600 capitalize">{currentLeader.level} Leader</p>
                   <p className="text-gray-500">{currentLeader.department}</p>
@@ -130,10 +130,10 @@ const AdminDashboard = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Last Name</label>
                   <p className="mt-1 text-sm text-gray-900">{currentLeader.lastName}</p>
-                </div>
-                <div>
+              </div>
+              <div>
                   <label className="block text-sm font-medium text-gray-700">Email Address</label>
-                  <p className="mt-1 text-sm text-gray-900">{currentLeader.email}</p>
+                <p className="mt-1 text-sm text-gray-900">{currentLeader.email}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Phone Number</label>
@@ -155,7 +155,7 @@ const AdminDashboard = () => {
                   <p className="mt-1 text-sm text-gray-900">{currentLeader.department}</p>
                 </div>
 
-                <div>
+              <div>
                   <label className="block text-sm font-medium text-gray-700">Member Since</label>
                   <p className="mt-1 text-sm text-gray-900">
                     {new Date(currentLeader.joinedAt).toLocaleDateString()}
@@ -184,14 +184,14 @@ const AdminDashboard = () => {
                     <p className="mt-1 text-sm text-gray-900">{currentLeader.location.cell}</p>
                   </div>
                 )}
-                <div>
+              <div>
                   <label className="block text-sm font-medium text-gray-700">Full Jurisdiction</label>
-                  <p className="mt-1 text-sm text-gray-900">
-                    {currentLeader.location.district}
-                    {currentLeader.location.sector && ` - ${currentLeader.location.sector}`}
-                    {currentLeader.location.cell && ` - ${currentLeader.location.cell}`}
-                  </p>
-                </div>
+                <p className="mt-1 text-sm text-gray-900">
+                  {currentLeader.location.district}
+                  {currentLeader.location.sector && ` - ${currentLeader.location.sector}`}
+                  {currentLeader.location.cell && ` - ${currentLeader.location.cell}`}
+                </p>
+              </div>
               </div>
             </div>
           </div>
@@ -248,30 +248,30 @@ const AdminDashboard = () => {
 
             {/* Stats Cards */}
             {!isLoading && !error && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {stats.map((stat) => {
-                  const Icon = stat.icon;
-                  const colorClasses = getColorClasses(stat.color).split(' ');
-                  const iconBg = colorClasses[0];
-                  
-                  return (
-                    <div key={stat.title} className="bg-white rounded-lg shadow p-6">
-                      <div className="flex items-center">
-                        <div className={`${iconBg} p-3 rounded-lg`}>
-                          <Icon className="w-6 h-6 text-white" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {stats.map((stat) => {
+                const Icon = stat.icon;
+                const colorClasses = getColorClasses(stat.color).split(' ');
+                const iconBg = colorClasses[0];
+                
+                return (
+                  <div key={stat.title} className="bg-white rounded-lg shadow p-6">
+                    <div className="flex items-center">
+                      <div className={`${iconBg} p-3 rounded-lg`}>
+                        <Icon className="w-6 h-6 text-white" />
+                      </div>
+                      <div className="ml-4 flex-1">
+                        <p className="text-sm font-medium text-gray-600">{stat.title}</p>
+                        <div className="flex items-baseline">
+                          <p className="text-2xl font-semibold text-gray-900">{stat.value}</p>
                         </div>
-                        <div className="ml-4 flex-1">
-                          <p className="text-sm font-medium text-gray-600">{stat.title}</p>
-                          <div className="flex items-baseline">
-                            <p className="text-2xl font-semibold text-gray-900">{stat.value}</p>
-                          </div>
-                          <p className="text-xs text-gray-500 mt-1">{stat.change}</p>
-                        </div>
+                        <p className="text-xs text-gray-500 mt-1">{stat.change}</p>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+                );
+              })}
+            </div>
             )}
 
             {/* Performance Overview */}
@@ -282,9 +282,9 @@ const AdminDashboard = () => {
                   <div className="text-center">
                     <div className="text-2xl font-bold text-blue-600">
                       {dashboardData.issueMetrics.resolutionRate}%
-                    </div>
+                          </div>
                     <div className="text-sm text-gray-600">Issue Resolution Rate</div>
-                  </div>
+                        </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-green-600">
                       {dashboardData.responseMetrics.averageResponseTimeHours}h
@@ -397,9 +397,9 @@ const AdminDashboard = () => {
             className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center' : 'space-x-3'} mb-2 hover:bg-gray-50 rounded-lg transition-colors ${sidebarCollapsed ? 'p-1' : 'p-2'} h-auto`}
           >
             {currentLeader.avatar ? (
-              <img
-                src={currentLeader.avatar}
-                alt={currentLeader.name}
+            <img
+              src={currentLeader.avatar}
+              alt={currentLeader.name}
                 className="w-8 h-8 rounded-full flex-shrink-0 object-cover"
               />
             ) : (
@@ -409,13 +409,13 @@ const AdminDashboard = () => {
             )}
             {!sidebarCollapsed && (
               <div className="flex-1 min-w-0 text-left">
-                <p className="text-sm font-medium text-gray-900 truncate">
-                  {currentLeader.firstName}
-                </p>
-                <p className="text-xs text-gray-500 truncate">
-                  {currentLeader.level} Leader
-                </p>
-              </div>
+              <p className="text-sm font-medium text-gray-900 truncate">
+                {currentLeader.firstName}
+              </p>
+              <p className="text-xs text-gray-500 truncate">
+                {currentLeader.level} Leader
+              </p>
+            </div>
             )}
           </button>
           
@@ -433,7 +433,7 @@ const AdminDashboard = () => {
       {/* Main Content */}
       <div className={`flex-1 transition-all duration-300 ease-in-out ${sidebarCollapsed ? 'ml-16' : 'ml-64'}`}>
         <div className="p-8">
-          {renderContent()}
+        {renderContent()}
         </div>
       </div>
 
