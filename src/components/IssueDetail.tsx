@@ -609,10 +609,10 @@ export const IssueDetail: React.FC<IssueDetailProps> = ({
     setShowRatingPopup(true);
   };
 
-  const handleRatingSubmit = async (rating: number) => {
+  const handleRatingSubmit = async (rating: number, feedbackComment?: string) => {
     if (!responseToRate) return;
     
-    const success = await rateResponse(responseToRate.id, rating);
+    const success = await rateResponse(responseToRate.id, rating, feedbackComment);
     if (success) {
       // Update the response in the issue state to show the rating
       const updatedResponses = issue.responses.map((resp: ResponseResponseDto) => 

@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Megaphone, Users, Menu, X, Home, BarChart3, Shield } from 'lucide-react';
+import { MessageSquare, Megaphone, Users, Menu, X, Home, Shield, User } from 'lucide-react';
 import { LanguageSwitcher } from './components/LanguageSwitcher';
 import { IssuesSection } from './components/IssuesSection';
 import { TopicsSection } from './components/TopicsSection';
 import { AnnouncementsSection } from './components/AnnouncementsSection';
-import { SurveysSection } from './components/SurveysSection';
+
 import UserDashboard from './components/UserDashboard';
 import UserProfile from './components/UserProfile';
 import UserForm from './components/UserForm';
@@ -14,10 +14,10 @@ import UserMenu from './components/UserMenu';
 import ProfileCompletionBanner from './components/ProfileCompletionBanner';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LoginPromptProvider, useLoginPrompt } from './contexts/LoginPromptContext';
-import { topics, surveys } from './data/dummyData';
+import { topics } from './data/dummyData';
 import { getTranslation } from './i18n/translations';
 
-type Section = 'issues' | 'topics' | 'announcements' | 'surveys' | 'dashboard' | 'profile' | 'edit-profile';
+type Section = 'issues' | 'topics' | 'announcements' | 'dashboard' | 'profile' | 'edit-profile';
 
 function AppContent() {
   const [currentSection, setCurrentSection] = useState<Section>('issues');
@@ -194,7 +194,6 @@ function AppContent() {
     { id: 'issues', name: getTranslation('issues', language), icon: MessageSquare },
     { id: 'topics', name: getTranslation('topics', language), icon: Users },
     { id: 'announcements', name: getTranslation('announcements', language), icon: Megaphone },
-    { id: 'surveys', name: 'Surveys', icon: BarChart3 },
   ];
 
   const renderContent = () => {
@@ -267,22 +266,7 @@ function AppContent() {
             currentUser={currentUser}
           />
         );
-      case 'surveys':
-        return (
-          <SurveysSection
-            surveys={surveys}
-            language={language}
-            currentUser={currentUser}
-            onSubmitSurvey={(surveyId, answers) => {
-              if (!isAuthenticated) {
-                showLoginPrompt('Please log in to submit survey responses');
-                return;
-              }
-              // In a real app, this would submit to the backend
-              console.log(`Submitting survey ${surveyId} with answers:`, answers);
-            }}
-          />
-        );
+
       default:
         return <UserDashboard language={language} />;
     }
@@ -309,29 +293,53 @@ function AppContent() {
 
             {/* Desktop Navigation - Only show when authenticated */}
             {isAuthenticated && (
-              <nav className="hidden md:flex space-x-8">
-                {navigation.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => setCurrentSection(item.id as Section)}
-                      className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                        currentSection === item.id
-                          ? 'bg-blue-100 text-blue-700'
-                          : 'text-gray-700 hover:text-blue-600 hover:bg-gray-100'
-                      }`}
-                    >
-                      <Icon size={18} />
-                      <span>{item.name}</span>
-                    </button>
-                  );
-                })}
-              </nav>
+              <>
+                {/* Medium screens: Icons only */}
+                <nav className="hidden md:flex lg:hidden space-x-4">
+                  {navigation.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => setCurrentSection(item.id as Section)}
+                        className={`p-2 rounded-md text-sm font-medium transition-colors ${
+                          currentSection === item.id
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'text-gray-700 hover:text-blue-600 hover:bg-gray-100'
+                        }`}
+                        title={item.name}
+                      >
+                        <Icon size={20} />
+                      </button>
+                    );
+                  })}
+                </nav>
+                
+                {/* Large screens: Icons with text */}
+                <nav className="hidden lg:flex space-x-6 xl:space-x-8">
+                  {navigation.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => setCurrentSection(item.id as Section)}
+                        className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                          currentSection === item.id
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'text-gray-700 hover:text-blue-600 hover:bg-gray-100'
+                        }`}
+                      >
+                        <Icon size={18} />
+                        <span>{item.name}</span>
+                      </button>
+                    );
+                  })}
+                </nav>
+              </>
             )}
 
             {/* Language Switcher, User Menu/Login & Mobile Menu */}
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 sm:space-x-4">
               <LanguageSwitcher currentLanguage={language} onLanguageChange={setLanguage} />
 
               {/* User Menu - Only show when authenticated */}
@@ -344,46 +352,107 @@ function AppContent() {
               {isAuthenticated && (
                 <button
                   onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                  className="md:hidden p-2 rounded-md text-gray-700 hover:text-blue-600 hover:bg-gray-100 transition-colors"
+                  className="md:hidden p-2 rounded-md text-gray-700 hover:text-blue-600 hover:bg-gray-100 transition-colors relative"
+                  aria-label="Toggle mobile menu"
                 >
                   {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+                  {/* Active section indicator */}
+                  <div className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full opacity-75" />
                 </button>
               )}
             </div>
           </div>
         </div>
 
-        {/* Mobile Navigation - Only show when authenticated */}
+        {/* Mobile Navigation Side Panel - Only show when authenticated */}
         {isAuthenticated && isMobileMenuOpen && (
-          <div className="md:hidden border-t border-gray-200 bg-white">
-            <div className="px-2 pt-2 pb-3 space-y-1">
-              {navigation.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      setCurrentSection(item.id as Section);
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className={`w-full flex items-center space-x-3 py-2 px-3 rounded-md text-base font-medium transition-colors ${
-                      currentSection === item.id
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'text-gray-700 hover:text-blue-600 hover:bg-gray-100'
-                    }`}
-                  >
-                    <Icon size={18} />
-                    <span>{item.name}</span>
-                  </button>
-                );
-              })}
+          <>
+            {/* Backdrop */}
+            <div 
+              className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
+              onClick={() => setIsMobileMenuOpen(false)}
+            />
+            
+            {/* Side Panel */}
+            <div className={`md:hidden fixed top-0 left-0 h-full w-64 bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out ${
+              isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+            }`}>
+              {/* Header */}
+              <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
+                <div className="flex items-center space-x-3">
+                  <div className="bg-blue-600 text-white p-2 rounded-lg">
+                    <Home size={20} />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900">Menu</h2>
+                    <p className="text-xs text-gray-600">CitizenConnect</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="p-2 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              
+              {/* Navigation Items */}
+              <div className="p-4 space-y-2">
+                {navigation.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setCurrentSection(item.id as Section);
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center space-x-3 py-3 px-4 rounded-lg text-base font-medium transition-all duration-200 ${
+                        currentSection === item.id
+                          ? 'bg-blue-100 text-blue-700 shadow-sm'
+                          : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <Icon size={20} />
+                      <span>{item.name}</span>
+                      {currentSection === item.id && (
+                        <div className="ml-auto w-2 h-2 bg-blue-600 rounded-full" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              
+              {/* User Section */}
+              <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 bg-gray-50">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                    <User size={20} className="text-blue-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-900">
+                      {currentUser?.firstName} {currentUser?.lastName}
+                    </p>
+                    <p className="text-xs text-gray-600">Citizen</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setCurrentSection('edit-profile');
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="w-full mt-3 px-4 py-2 text-sm font-medium text-blue-600 bg-white border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+                >
+                  Edit Profile
+                </button>
+              </div>
             </div>
-          </div>
+          </>
         )}
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+      <main className="flex-1 max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 xl:px-8 py-6 sm:py-8 w-full">
         {/* Profile Completion Banner - Only show when authenticated */}
         {isAuthenticated && (
           <ProfileCompletionBanner

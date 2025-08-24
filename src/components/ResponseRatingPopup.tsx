@@ -8,7 +8,7 @@ interface ResponseRatingPopupProps {
   response: ResponseResponseDto;
   isOpen: boolean;
   onClose: () => void;
-  onRatingSubmit: (rating: number) => void;
+  onRatingSubmit: (rating: number, feedbackComment?: string) => void;
 }
 
 const ResponseRatingPopup: React.FC<ResponseRatingPopupProps> = ({
@@ -19,25 +19,33 @@ const ResponseRatingPopup: React.FC<ResponseRatingPopupProps> = ({
 }) => {
   const [rating, setRating] = useState(0);
   const [hoveredRating, setHoveredRating] = useState(0);
+  const [feedbackComment, setFeedbackComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { currentUser, isAuthenticated } = useAuth();
   const { error: ratingError, clearError } = useResponseRating();
 
   if (!isOpen || !isAuthenticated) return null;
 
-  // Clear any previous errors when popup opens
+  // Clear any previous errors and reset form when popup opens
   React.useEffect(() => {
     if (isOpen) {
       clearError();
+      setRating(0);
+      setFeedbackComment('');
     }
   }, [isOpen, clearError]);
 
   const handleRatingSubmit = async () => {
     if (rating === 0) return;
     
+    // Validate feedback comment length
+    if (feedbackComment.length > 500) {
+      return;
+    }
+    
     setIsSubmitting(true);
     try {
-      await onRatingSubmit(rating);
+      await onRatingSubmit(rating, feedbackComment.trim() || undefined);
       onClose();
     } catch (error) {
       console.error('Error submitting rating:', error);
@@ -108,13 +116,42 @@ const ResponseRatingPopup: React.FC<ResponseRatingPopupProps> = ({
 
           {/* Rating Label */}
           {rating > 0 && (
-            <p className="text-sm text-gray-700 mb-6">
+            <p className="text-sm text-gray-700 mb-4">
               {rating === 1 && 'Very Dissatisfied'}
               {rating === 2 && 'Dissatisfied'}
               {rating === 3 && 'Neutral'}
               {rating === 4 && 'Satisfied'}
               {rating === 5 && 'Very Satisfied'}
             </p>
+          )}
+
+          {/* Feedback Comment Input */}
+          {!response.averageRating && (
+            <div className="mb-6">
+              <label htmlFor="feedbackComment" className="block text-sm font-medium text-gray-700 mb-2 text-left">
+                Additional Feedback (Optional)
+              </label>
+              <textarea
+                id="feedbackComment"
+                value={feedbackComment}
+                onChange={(e) => setFeedbackComment(e.target.value)}
+                placeholder="Share your thoughts about this response... (e.g., What went well? What could be improved?)"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none transition-colors"
+                rows={3}
+                maxLength={500}
+                disabled={isSubmitting}
+              />
+              <div className="flex justify-between items-center mt-2">
+                <p className="text-xs text-gray-500 flex items-center">
+                  <span className="mr-1">💡</span>
+                  Your feedback helps improve government responses
+                </p>
+                <span className={`text-xs ${feedbackComment.length > 450 ? 'text-orange-500' : feedbackComment.length > 400 ? 'text-yellow-500' : 'text-gray-400'}`}>
+                  {feedbackComment.length}/500
+                  {feedbackComment.length > 450 && <span className="ml-1">⚠️</span>}
+                </span>
+              </div>
+            </div>
           )}
 
           {/* Action Buttons */}
@@ -134,7 +171,7 @@ const ResponseRatingPopup: React.FC<ResponseRatingPopupProps> = ({
               disabled={rating === 0 || isSubmitting || !!response.averageRating}
               className="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {response.averageRating ? 'Already Rated' : (isSubmitting ? 'Submitting...' : 'Submit Rating')}
+              {response.averageRating ? 'Already Rated' : (isSubmitting ? 'Submitting...' : `Submit Rating${feedbackComment.trim() ? ' & Feedback' : ''}`)}
             </button>
           </div>
           

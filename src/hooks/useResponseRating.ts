@@ -7,7 +7,7 @@ export const useResponseRating = () => {
   const [error, setError] = useState<string | null>(null);
   const { currentUser } = useAuth();
 
-  const rateResponse = async (responseId: number, rating: number): Promise<boolean> => {
+  const rateResponse = async (responseId: number, rating: number, feedbackComment?: string): Promise<boolean> => {
     if (!currentUser) {
       setError('You must be logged in to rate responses');
       return false;
@@ -24,7 +24,15 @@ export const useResponseRating = () => {
       }
 
       const tokens = JSON.parse(token);
-      const response = await fetch(`${API_ENDPOINTS.RESPONSES.RATE}/${responseId}/rate?rating=${rating}`, {
+      
+      // Build query parameters
+      const params = new URLSearchParams();
+      params.append('rating', rating.toString());
+      if (feedbackComment && feedbackComment.trim()) {
+        params.append('feedbackComment', feedbackComment.trim());
+      }
+      
+      const response = await fetch(`${API_ENDPOINTS.RESPONSES.RATE}/${responseId}/rate?${params.toString()}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${tokens.accessToken}`,
