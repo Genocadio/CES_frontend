@@ -40,6 +40,10 @@ A modern React TypeScript frontend application for the Citizen Engagement System
 5. **Open your browser**
    Navigate to `http://localhost:5173`
 
+### For Administrators
+- **Admin Portal**: Access via `/admin` route in the main application
+- **External Dashboard**: For analytics and monitoring, visit [https://cep-dashboard-3.onrender.com](https://cep-dashboard-3.onrender.com)
+
 ## 🏗️ Project Structure
 
 ```
@@ -111,6 +115,15 @@ This frontend connects to a Spring Boot backend application. For backend setup a
 
 **[Backend Repository](https://github.com/Genocadio/CITIZEN_ENGAGEMENT_SYSTEM)**
 
+## 📊 Dashboard
+
+For administrative monitoring and analytics, we have a dedicated dashboard:
+
+**[Dashboard Repository](https://github.com/gihozo-Ds/CEP_dashboard.git)**
+**[Live Dashboard](https://cep-dashboard-3.onrender.com)**
+
+> **Note**: The dashboard is deployed on Render's free tier, which may experience some delays during initial loading or after periods of inactivity. This is normal for free-tier deployments.
+
 ### API Endpoints
 The frontend expects the following backend endpoints:
 
@@ -146,6 +159,7 @@ The frontend expects the following backend endpoints:
 - **Survey Management**: Create and manage community surveys
 - **Announcement System**: Publish community announcements
 - **User Management**: Oversee citizen accounts
+- **Dashboard Access**: External monitoring dashboard for analytics and oversight
 
 ### Technical Features
 - **Responsive Design**: Mobile-first approach

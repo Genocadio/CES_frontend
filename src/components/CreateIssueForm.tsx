@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import CloudinaryUpload from './CloudinaryUpload';
 import { cloudinaryPresets } from '../config/cloudinary';
 import { API_ENDPOINTS } from '../config/api';
+import { cleanLocationData } from '../utils/dateUtils';
 
 interface CreateIssueFormProps {
   onClose: () => void;
@@ -238,6 +239,8 @@ const CreateIssueForm: React.FC<CreateIssueFormProps> = ({
     return Object.keys(newErrors).length === 0;
   };
 
+
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -251,8 +254,8 @@ const CreateIssueForm: React.FC<CreateIssueFormProps> = ({
       const issueData: IssueRequestDto = {
         ...formData,
         language: 'ENGLISH', // Always default to English
-        // Location is always optional
-        location: Object.keys(location).length > 0 ? location : undefined,
+        // Only include location if it has valid data
+        location: cleanLocationData(location),
         attachments: attachments.length > 0 ? attachments : undefined,
         assignedToId: formData.assignedToId, // Include leader assignment
       } as IssueRequestDto;

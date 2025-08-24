@@ -4,6 +4,7 @@ import { TopicRequestDto, LocationRequestDto, AttachmentRequestDto, Language, Us
 import { CloudinaryUpload } from './CloudinaryUpload';
 import { TagSuggestions } from './TagSuggestions';
 import { API_ENDPOINTS } from '../config/api';
+import { cleanLocationData } from '../utils/dateUtils';
 
 interface CreateTopicFormProps {
   onClose: () => void;
@@ -142,13 +143,8 @@ export const CreateTopicForm: React.FC<CreateTopicFormProps> = ({
       };
 
       // Add regional focus for admin users if enabled
-      if (showRegionalFocus && isAdmin && formData.focusLocation.district) {
-        topicData.focusLocation = {
-          district: formData.focusLocation.district,
-          sector: formData.focusLocation.sector || undefined,
-          cell: formData.focusLocation.cell || undefined,
-          village: formData.focusLocation.village || undefined
-        };
+      if (showRegionalFocus && isAdmin && formData.focusLocation.district?.trim()) {
+        topicData.focusLocation = cleanLocationData(formData.focusLocation);
       }
 
       onSubmit(topicData);

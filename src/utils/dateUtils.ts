@@ -125,3 +125,46 @@ export const formatRelativeTimeWithLanguage = (
     return 'Invalid date';
   }
 };
+
+/**
+ * Cleans location data by filtering out empty string values
+ * @param location - The location object to clean
+ * @returns Clean location object with only non-empty values, or undefined if no valid data
+ */
+export const cleanLocationData = (location: any): any => {
+  if (!location || typeof location !== 'object') {
+    return undefined;
+  }
+
+  const cleanLocation: any = {};
+  let hasValidData = false;
+
+  // Only include non-empty string values
+  if (location.district?.trim()) {
+    cleanLocation.district = location.district.trim();
+    hasValidData = true;
+  }
+  if (location.sector?.trim()) {
+    cleanLocation.sector = location.sector.trim();
+    hasValidData = true;
+  }
+  if (location.cell?.trim()) {
+    cleanLocation.cell = location.cell.trim();
+    hasValidData = true;
+  }
+  if (location.village?.trim()) {
+    cleanLocation.village = location.village.trim();
+    hasValidData = true;
+  }
+  
+  // Include coordinates if they exist and are valid numbers
+  if (location.latitude !== undefined && location.longitude !== undefined && 
+      typeof location.latitude === 'number' && typeof location.longitude === 'number' &&
+      !isNaN(location.latitude) && !isNaN(location.longitude)) {
+    cleanLocation.latitude = location.latitude;
+    cleanLocation.longitude = location.longitude;
+    hasValidData = true;
+  }
+
+  return hasValidData ? cleanLocation : undefined;
+};
