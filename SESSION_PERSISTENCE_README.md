@@ -1,6 +1,6 @@
 # Session Persistence Implementation
 
-This document describes the session persistence features implemented in the CitizenConnect frontend application to ensure users remain logged in across page refreshes and browser sessions.
+This document describes the session persistence features implemented in the Citizen Engagement System frontend application to ensure users remain logged in across page refreshes and browser sessions.
 
 ## Features Implemented
 

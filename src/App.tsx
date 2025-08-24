@@ -125,10 +125,10 @@ function AppContent() {
                     <Home size={24} />
                   </div>
                 </div>
-                <div>
-                  <h1 className="text-xl font-bold text-gray-900">CitizenConnect</h1>
-                  <p className="text-xs text-gray-600">Republic of Rwanda</p>
-                </div>
+                              <div>
+                <h1 className="text-xl font-bold text-gray-900">Citizen Engagement System</h1>
+                <p className="text-xs text-gray-600">Republic of Rwanda</p>
+              </div>
               </div>
 
               {/* Language Switcher */}
@@ -147,10 +147,10 @@ function AppContent() {
                 <Shield size={32} className="text-white" />
               </div>
               <h2 className="mt-6 text-3xl font-bold text-gray-900">
-                Welcome to CitizenConnect
+                Welcome to Citizen Engagement System
               </h2>
               <p className="mt-2 text-sm text-gray-600">
-                Please log in or register to access the citizen portal
+                                  Please log in or register to access the citizen engagement system
               </p>
             </div>
 
@@ -181,7 +181,7 @@ function AppContent() {
         <footer className="bg-white border-t border-gray-200 mt-auto flex-shrink-0">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="text-center">
-              <p className="text-gray-600">© 2024 Republic of Rwanda - CitizenConnect Portal</p>
+                                <p className="text-gray-600">© 2024 Republic of Rwanda - Citizen Engagement System</p>
               <p className="text-sm text-gray-500">Empowering citizens through digital engagement</p>
             </div>
           </div>
@@ -286,7 +286,7 @@ function AppContent() {
                 </div>
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">CitizenConnect</h1>
+                <h1 className="text-xl font-bold text-gray-900">Citizen Engagement System</h1>
                 <p className="text-xs text-gray-600">Republic of Rwanda</p>
               </div>
             </div>
@@ -385,7 +385,7 @@ function AppContent() {
                   </div>
                   <div>
                     <h2 className="text-lg font-semibold text-gray-900">Menu</h2>
-                    <p className="text-xs text-gray-600">CitizenConnect</p>
+                    <p className="text-xs text-gray-600">Citizen Engagement System</p>
                   </div>
                 </div>
                 <button
@@ -465,22 +465,7 @@ function AppContent() {
         {renderContent()}
       </main>
 
-      {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 mt-auto flex-shrink-0">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-            <div className="text-center md:text-left">
-              <p className="text-gray-600">© 2024 Republic of Rwanda - CitizenConnect Portal</p>
-              <p className="text-sm text-gray-500">Empowering citizens through digital engagement</p>
-            </div>
-            <div className="flex items-center space-x-6 text-sm text-gray-600">
-              <a href="#" className="hover:text-blue-600 transition-colors">Privacy Policy</a>
-              <a href="#" className="hover:text-blue-600 transition-colors">Terms of Service</a>
-              <a href="#" className="hover:text-blue-600 transition-colors">Contact Support</a>
-            </div>
-          </div>
-        </div>
-      </footer>
+
     </div>
   );
 }
