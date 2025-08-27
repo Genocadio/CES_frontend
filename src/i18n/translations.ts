@@ -127,7 +127,7 @@ export const translations = {
   selectCategory: { ENGLISH: 'Select category', KINYARWANDA: 'Hitamo icyiciro', FRENCH: 'Sélectionnez la catégorie' },
   
   // Profile completion
-  profileIncomplete: { ENGLISH: 'Profile Incomplete', KINYARWANDA: 'Umwirondoro Ntuzuzuye', FRENCH: 'Profil Incomplet' },
+  profileIncomplete: { ENGLISH: 'Profile Incomplete', KINYARWANDA: 'Umwirondoro Ntiwuzuye', FRENCH: 'Profil Incomplet' },
       profileIncompleteMessage: { ENGLISH: 'Please complete your profile by adding your location information to get the full Citizen Engagement Platform experience.', KINYARWANDA: 'Uzuza umwirondoro wawe ukongeramo amakuru y\'ahantu kugirango ubone uburambe bwose bwa Citizen Engagement Platform.', FRENCH: 'Veuillez compléter votre profil en ajoutant vos informations de localisation pour obtenir l\'expérience complète de Citizen Engagement Platform.' },
   completeProfile: { ENGLISH: 'Complete Profile', KINYARWANDA: 'Uzuza Umwirondoro', FRENCH: 'Compléter le Profil' },
 };
