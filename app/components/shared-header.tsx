@@ -35,7 +35,10 @@ export function SharedHeader({ showHomeButton = false }: SharedHeaderProps) {
                   <FileText className="h-6 w-6 text-primary-foreground" />
                 </div>
                 <div>
-                  <h1 className="text-xl font-semibold text-foreground">{t("welcomeTitle")}</h1>
+                  <h1 className="text-xl font-semibold text-foreground">
+                    <span className="hidden sm:inline">{t("headerTitle")}</span>
+                    <span className="sm:hidden">CEP</span>
+                  </h1>
                 </div>
               </>
             )}

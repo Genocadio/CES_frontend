@@ -575,7 +575,7 @@ export default function SubmitIssuePage() {
 
             <div className="flex gap-4">
               {submissionMode === "minimal" ? (
-                                                  <Button
+                <Button
                   type="button"
                   onClick={handleSaveMinimal}
                   className="w-full"
@@ -585,26 +585,14 @@ export default function SubmitIssuePage() {
                   {isCreating ? t("loading") : t("getTicketId")}
                 </Button>
               ) : (
-                <>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleSaveMinimal}
-                    className="flex-1 bg-transparent"
-                    disabled={isCreating || (!form.fullName || !form.phoneNumber)}
-                  >
-                    <Save className="h-4 w-4 mr-2" />
-                    {isCreating ? t("loading") : t("saveDraftAndGetTicketId")}
-                  </Button>
-                  <Button
-                    type="submit"
-                    className="flex-1"
-                    disabled={isCreating || !form.title || !form.description || !form.category}
-                  >
-                    <Send className="h-4 w-4 mr-2" />
-                    {isCreating ? t("loading") : t("submit")}
-                  </Button>
-                </>
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={isCreating || !form.title || !form.description || !form.category}
+                >
+                  <Send className="h-4 w-4 mr-2" />
+                  {isCreating ? t("loading") : t("submit")}
+                </Button>
               )}
             </div>
           </form>

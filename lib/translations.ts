@@ -10,7 +10,8 @@ export const translations = {
     language: "Ururimi",
 
     // Home page
-    welcomeTitle: "Murakaza neza ku Rubuga rw'Ibibazo by'Abaturage",
+    welcomeTitle: "Murakaza neza ku Rubuga ruhuza abaturage n' ubuyobozi",
+    headerTitle: "Citizen Engagement Platform",
     welcomeSubtitle:
       "Tanga ibibazo byawe, ibitekerezo, cyangwa ibyifuzo kugira ngo dufatanye mu guteza imbere igihugu cyacu",
 
@@ -155,7 +156,8 @@ export const translations = {
     language: "Language",
 
     // Home page
-    welcomeTitle: "Welcome to Citizen Issue Platform",
+    welcomeTitle: "Welcome to Citizen Engagement Platform",
+    headerTitle: "Citizen Engagement Platform",
     welcomeSubtitle: "Submit your issues, feedback, or suggestions to help us improve our community together",
 
     // Issue submission
@@ -299,7 +301,8 @@ export const translations = {
     language: "Langue",
 
     // Home page
-    welcomeTitle: "Bienvenue sur la Plateforme des Problèmes Citoyens",
+    welcomeTitle: "Bienvenue sur la Plateforme de Engagement Citoyen",
+    headerTitle: "Plateforme de Engagement Citoyen",
     welcomeSubtitle:
       "Soumettez vos problèmes, commentaires ou suggestions pour nous aider à améliorer notre communauté ensemble",
 
