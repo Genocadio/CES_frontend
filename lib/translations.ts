@@ -439,11 +439,11 @@ export const translations = {
 
 export function getTranslation(lang: Language, key: string): string {
   const keys = key.split(".")
-  let value: any = translations[lang]
+  let value: unknown = translations[lang]
 
   for (const k of keys) {
-    value = value?.[k]
+    value = (value as Record<string, unknown>)?.[k]
   }
 
-  return value || key
+  return (value as string) || key
 }

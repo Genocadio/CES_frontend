@@ -197,7 +197,7 @@ export default function DashboardPage() {
                 <div className="text-center py-8">
                   <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-semibold mb-2">No Issues Yet</h3>
-                  <p className="text-muted-foreground mb-4">You haven't submitted any issues yet.</p>
+                  <p className="text-muted-foreground mb-4">You haven&apos;t submitted any issues yet.</p>
                   <Link href="/submit">
                     <Button>Submit Your First Issue</Button>
                   </Link>

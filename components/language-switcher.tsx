@@ -13,7 +13,7 @@ const languages = [
 ]
 
 export function LanguageSwitcher() {
-  const { language, setLanguage, t } = useLanguage()
+  const { language, setLanguage } = useLanguage()
 
   const currentLanguage = languages.find((lang) => lang.code === language)
 

@@ -12,7 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { useLanguage } from "@/hooks/use-language"
 import { Upload, FileText, User, UserX, Save, Send, X, CheckCircle, AlertCircle } from "lucide-react"
 import { useState } from "react"
-import { generateTicketId } from "@/lib/dummy-data"
+
 import { SharedHeader } from "../components/shared-header"
 import Link from "next/link"
 import { useCloudinaryUpload, AttachmentRequestDto } from "@/lib/hooks/use-cloudinary-upload"
@@ -36,16 +36,13 @@ interface IssueForm {
 export default function SubmitIssuePage() {
   const { t } = useLanguage()
   
-  // Mock authentication state - replace with your actual auth logic
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
-  
   const [form, setForm] = useState<IssueForm>({
     title: "",
     description: "",
     category: "",
     issueType: "suggestion",
     isPublic: true,
-    isAnonymous: !isLoggedIn, // Default to anonymous for non-logged-in users
+    isAnonymous: true, // Default to anonymous for non-logged-in users
     fullName: "",
     phoneNumber: "",
     email: "",
@@ -55,7 +52,7 @@ export default function SubmitIssuePage() {
   })
 
   // Initialize Cloudinary upload hook
-  const { uploadFile, uploadMultipleFiles, isUploading, progress, resetProgress } = useCloudinaryUpload({
+  const { uploadMultipleFiles, isUploading, progress, resetProgress } = useCloudinaryUpload({
     cloudName: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || 'your-cloud-name',
     uploadPreset: process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || 'your-upload-preset',
     folder: 'issue-attachments',
@@ -70,13 +67,7 @@ export default function SubmitIssuePage() {
   // Initialize create issue hook
   const { createIssue, isCreating, error: createError, resetError } = useCreateIssue()
 
-  // Update form.isAnonymous when login status changes
-  React.useEffect(() => {
-    setForm(prev => ({
-      ...prev,
-      isAnonymous: !isLoggedIn
-    }))
-  }, [isLoggedIn])
+
 
   const categories = [
     { value: "infrastructure", label: t("infrastructure") },
@@ -128,26 +119,25 @@ export default function SubmitIssuePage() {
   const handleSaveMinimal = async () => {
     resetError()
 
-    // Prepare user data - null if anonymous
-    const userData: IssueUserDto | null = form.isAnonymous ? null : {
+    // For minimal submission, always send user data and set isAnonymous to false
+    const userData: IssueUserDto = {
       firstName: form.fullName.split(' ')[0] || form.fullName,
       lastName: form.fullName.split(' ').slice(1).join(' ') || '',
       phoneNumber: form.phoneNumber,
       email: form.email || undefined
     }
 
-    // Create minimal issue data for backend
+    // Create minimal issue data for backend - minimal user data with language, all other fields null
     const minimalData = {
-      title: "Draft Issue", // Placeholder title for minimal submission
-      description: "Issue details to be completed later", // Placeholder description
-      issueType: "suggestion" as const, // Default issue type
-      user: userData,
-      departmentId: "", // No category selected yet
-      isPrivate: true, // Default to private for drafts
-      isanonymous: form.isAnonymous,
-      assignedToId: undefined,
-      location: undefined,
-      attachments: form.attachments
+      title: "Draft Issue",
+      description: "Issue details to be completed later",
+      issueType: "SUGGESTION" as const,
+      user: userData, // Always send user data for minimal submission
+      departmentId: "other", // Default to "other" category for minimal submission
+      isPrivate: true,
+      isanonymous: false, // Always false for minimal submission (backend expects lowercase)
+      attachments: [],
+      language: "ENGLISH" // Default language
     }
 
     // Call backend API to create minimal issue
@@ -182,10 +172,11 @@ export default function SubmitIssuePage() {
       user: userData,
       departmentId: form.category, // This will be mapped to department ID
       isPrivate: !form.isPublic,
-      isanonymous: form.isAnonymous,
+      isanonymous: form.isAnonymous, // Map form state to backend field
       assignedToId: undefined, // Leave blank as requested
       location: undefined, // No location for now
-      attachments: form.attachments
+      attachments: form.attachments,
+      language: "ENGLISH" // Default language
     }
 
     // Call backend API
@@ -200,10 +191,7 @@ export default function SubmitIssuePage() {
     }
   }
 
-  // Toggle login status for demo purposes - remove this in production
-  const toggleLoginStatus = () => {
-    setIsLoggedIn(!isLoggedIn)
-  }
+
 
   if (showSuccess) {
     return (
@@ -263,11 +251,9 @@ export default function SubmitIssuePage() {
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-foreground mb-2">{t("submitIssue")}</h1>
             <p className="text-muted-foreground">{t("issueDescription")}</p>
-            {!isLoggedIn && (
-              <p className="text-sm text-muted-foreground mt-2">
-                {t("notLoggedInMessage")}
-              </p>
-            )}
+            <p className="text-sm text-muted-foreground mt-2">
+              {t("notLoggedInMessage")}
+            </p>
           </div>
 
           <Card className="mb-6">
@@ -477,7 +463,7 @@ export default function SubmitIssuePage() {
               </Card>
             )}
 
-            {submissionMode === "full" && isLoggedIn && (
+            {submissionMode === "full" && (
               <Card>
                 <CardHeader>
                   <CardTitle>{t("submissionOptions")}</CardTitle>
@@ -519,8 +505,8 @@ export default function SubmitIssuePage() {
               </Card>
             )}
 
-            {/* Contact Information - Only show for non-logged-in users */}
-            {!isLoggedIn && (
+            {/* Contact Information */}
+            {(
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -593,7 +579,7 @@ export default function SubmitIssuePage() {
                   type="button"
                   onClick={handleSaveMinimal}
                   className="w-full"
-                  disabled={isCreating || (!isLoggedIn && (!form.fullName || !form.phoneNumber))}
+                  disabled={isCreating || (!form.fullName || !form.phoneNumber)}
                 >
                   <Save className="h-4 w-4 mr-2" />
                   {isCreating ? t("loading") : t("getTicketId")}
@@ -605,7 +591,7 @@ export default function SubmitIssuePage() {
                     variant="outline"
                     onClick={handleSaveMinimal}
                     className="flex-1 bg-transparent"
-                    disabled={isCreating || (!isLoggedIn && (!form.fullName || !form.phoneNumber))}
+                    disabled={isCreating || (!form.fullName || !form.phoneNumber)}
                   >
                     <Save className="h-4 w-4 mr-2" />
                     {isCreating ? t("loading") : t("saveDraftAndGetTicketId")}

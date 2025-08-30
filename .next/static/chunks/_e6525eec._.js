@@ -407,7 +407,8 @@ function getTranslation(lang, key) {
     const keys = key.split(".");
     let value = translations[lang];
     for (const k of keys){
-        value = value === null || value === void 0 ? void 0 : value[k];
+        var _this;
+        value = (_this = value) === null || _this === void 0 ? void 0 : _this[k];
     }
     return value || key;
 }

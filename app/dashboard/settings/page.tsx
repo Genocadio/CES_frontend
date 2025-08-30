@@ -65,7 +65,7 @@ export default function SettingsPage() {
     if (success) {
       // Update app language if changed
       if (formData.language !== language) {
-        setLanguage(formData.language as any)
+        setLanguage(formData.language as "rw" | "en" | "fr")
       }
       setSaveMessage("Settings saved successfully!")
     } else {

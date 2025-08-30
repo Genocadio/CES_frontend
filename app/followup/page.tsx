@@ -10,7 +10,7 @@ import { LanguageSwitcher } from "@/components/language-switcher"
 import { useLanguage } from "@/hooks/use-language"
 import { ArrowLeft, Search, MessageSquare, Clock, CheckCircle, XCircle, FileText, Plus } from "lucide-react"
 import Link from "next/link"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { findIssueByTicketId, type Issue } from "@/lib/dummy-data"
 import { useSearchParams } from "next/navigation"
 
@@ -36,16 +36,7 @@ export default function FollowupPage() {
     attachments: [] as File[],
   })
 
-  // Check for ticket ID in URL params
-  useEffect(() => {
-    const urlTicketId = searchParams.get("id")
-    if (urlTicketId) {
-      setTicketId(urlTicketId)
-      handleSearch(urlTicketId)
-    }
-  }, [searchParams])
-
-  const handleSearch = async (searchTicketId?: string) => {
+  const handleSearch = useCallback(async (searchTicketId?: string) => {
     const idToSearch = searchTicketId || ticketId
     if (!idToSearch.trim()) return
 
@@ -63,7 +54,16 @@ export default function FollowupPage() {
       setNotFound(true)
     }
     setIsSearching(false)
-  }
+  }, [ticketId])
+
+  // Check for ticket ID in URL params
+  useEffect(() => {
+    const urlTicketId = searchParams.get("id")
+    if (urlTicketId) {
+      setTicketId(urlTicketId)
+      handleSearch(urlTicketId)
+    }
+  }, [searchParams, handleSearch])
 
   const handleAddComment = async () => {
     if (!newComment.trim() || !issue) return
@@ -191,7 +191,7 @@ export default function FollowupPage() {
                   <XCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-semibold mb-2">Ticket Not Found</h3>
                   <p className="text-muted-foreground mb-4">
-                    We couldn't find an issue with ticket ID "{ticketId}". Please check the ID and try again.
+                    We couldn&apos;t find an issue with ticket ID &quot;{ticketId}&quot;. Please check the ID and try again.
                   </p>
                   <Link href="/submit">
                     <Button>Submit New Issue</Button>

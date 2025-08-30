@@ -1,10 +1,10 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
+
 import { LanguageSwitcher } from "@/components/language-switcher"
 import { UserMenu } from "@/components/user-menu"
 import { useLanguage } from "@/hooks/use-language"
-import { useAuth } from "@/hooks/use-auth"
+
 import { FileText, Home } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -15,7 +15,6 @@ interface SharedHeaderProps {
 
 export function SharedHeader({ showHomeButton = false }: SharedHeaderProps) {
   const { t } = useLanguage()
-  const { user } = useAuth()
   const pathname = usePathname()
   
   // Show home button if explicitly requested or if not on home page

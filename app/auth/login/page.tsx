@@ -33,7 +33,7 @@ export default function LoginPage() {
     if (success) {
       router.push("/dashboard")
     } else {
-      setError("Invalid email or password. Try: any email with password 'password'")
+      setError("Invalid email or password. Try: any email with password &apos;password&apos;")
     }
   }
 
@@ -107,17 +107,17 @@ export default function LoginPage() {
               </form>
 
               <div className="mt-6 text-center">
-                <p className="text-sm text-muted-foreground">
-                  Don't have an account?{" "}
-                  <Link href="/auth/register" className="text-primary hover:underline">
-                    Register here
-                  </Link>
-                </p>
+                                  <p className="text-sm text-muted-foreground">
+                    Don&apos;t have an account?{" "}
+                    <Link href="/auth/register" className="text-primary hover:underline">
+                      Register here
+                    </Link>
+                  </p>
               </div>
 
               <div className="mt-4 p-3 bg-muted rounded-md">
                 <p className="text-xs text-muted-foreground">
-                  <strong>Demo accounts:</strong> Use any email with password "password" to login, or try:
+                  <strong>Demo accounts:</strong> Use any email with password &quot;password&quot; to login, or try:
                   <br />
                   jean@example.com / password
                   <br />
