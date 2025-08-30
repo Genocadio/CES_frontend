@@ -17,11 +17,13 @@ import { SharedHeader } from "../components/shared-header"
 import Link from "next/link"
 import { useCloudinaryUpload, AttachmentRequestDto } from "@/lib/hooks/use-cloudinary-upload"
 import { useCreateIssue, IssueUserDto } from "@/lib/hooks/use-create-issue"
+import { useDepartments } from "@/lib/hooks/use-departments"
+import { Combobox } from "@/components/ui/combobox"
 
 interface IssueForm {
   title: string
   description: string
-  category: string
+  departmentId: string
   issueType: string
   isPublic: boolean
   isAnonymous: boolean
@@ -34,12 +36,12 @@ interface IssueForm {
 }
 
 export default function SubmitIssuePage() {
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   
   const [form, setForm] = useState<IssueForm>({
     title: "",
     description: "",
-    category: "",
+    departmentId: "",
     issueType: "suggestion",
     isPublic: true,
     isAnonymous: true, // Default to anonymous for non-logged-in users
@@ -63,20 +65,17 @@ export default function SubmitIssuePage() {
   const [ticketId, setTicketId] = useState<string | null>(null)
   const [showSuccess, setShowSuccess] = useState(false)
   const [submissionMode, setSubmissionMode] = useState<"minimal" | "full">("full")
+  const [minimalError, setMinimalError] = useState<string | null>(null)
 
   // Initialize create issue hook
   const { createIssue, isCreating, error: createError, resetError } = useCreateIssue()
 
+  // Initialize departments hook
+  const { departments, searchDepartments, isLoading, error: departmentsError, resetError: resetDepartmentsError } = useDepartments()
 
 
-  const categories = [
-    { value: "infrastructure", label: t("infrastructure") },
-    { value: "healthcare", label: t("healthcare") },
-    { value: "education", label: t("education") },
-    { value: "security", label: t("security") },
-    { value: "environment", label: t("environment") },
-    { value: "other", label: t("other") },
-  ]
+
+
 
   const issueTypes = [
     { value: "positive_feedback", label: t("positiveFeedback") },
@@ -119,7 +118,7 @@ export default function SubmitIssuePage() {
   const handleSaveMinimal = async () => {
     resetError()
 
-    // For minimal submission, always send user data and set isAnonymous to false
+    // For minimal submission, only send user data and language
     const userData: IssueUserDto = {
       firstName: form.fullName.split(' ')[0] || form.fullName,
       lastName: form.fullName.split(' ').slice(1).join(' ') || '',
@@ -127,28 +126,43 @@ export default function SubmitIssuePage() {
       email: form.email || undefined
     }
 
-    // Create minimal issue data for backend - minimal user data with language, all other fields null
+    // Create minimal issue data for backend - only user and language, everything else minimal
     const minimalData = {
-      title: "Draft Issue",
-      description: "Issue details to be completed later",
-      issueType: "SUGGESTION" as const,
-      user: userData, // Always send user data for minimal submission
-      departmentId: "other", // Default to "other" category for minimal submission
-      isPrivate: true,
-      isanonymous: false, // Always false for minimal submission (backend expects lowercase)
+      title: "",
+      description: "",
+      user: userData,
+      isPrivate: false,
+      isanonymous: false,
+      assignedToId: undefined,
+      location: undefined,
       attachments: [],
-      language: "ENGLISH" // Default language
+      language: language === 'rw' ? 'KINYARWANDA' : language === 'fr' ? 'FRENCH' : 'ENGLISH'
     }
 
-    // Call backend API to create minimal issue
-    const result = await createIssue(minimalData)
-    
-    if (result) {
+    // Call backend API directly for minimal submission
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api'
+      
+      const response = await fetch(`${baseUrl}/issues`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(minimalData),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`)
+      }
+
+      const result = await response.json()
       setTicketId(result.ticketId)
       setShowSuccess(true)
-    } else {
-      // Error is already set in the hook
-      console.error('Failed to create minimal issue')
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create minimal issue'
+      console.error('Create minimal issue error:', error)
+      setMinimalError(errorMessage)
     }
   }
 
@@ -170,7 +184,7 @@ export default function SubmitIssuePage() {
       description: form.description,
       issueType: form.issueType,
       user: userData,
-      departmentId: form.category, // This will be mapped to department ID
+      departmentId: form.departmentId, // Use the selected department ID
       isPrivate: !form.isPublic,
       isanonymous: form.isAnonymous, // Map form state to backend field
       assignedToId: undefined, // Leave blank as requested
@@ -339,21 +353,21 @@ export default function SubmitIssuePage() {
                   <div className="grid md:grid-cols-2 gap-4">
                     <div>
                       <Label>{t("category")} *</Label>
-                      <Select
-                        value={form.category}
-                        onValueChange={(value) => setForm((prev) => ({ ...prev, category: value }))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder={`${t("category")}...`} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {categories.map((cat) => (
-                            <SelectItem key={cat.value} value={cat.value}>
-                              {cat.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Combobox
+                        options={departments.map(dept => ({
+                          value: dept.id.toString(),
+                          label: language === 'rw' ? dept.nameRw : language === 'fr' ? dept.nameFr : dept.nameEn,
+                          id: dept.id
+                        }))}
+                        value={form.departmentId}
+                        onValueChange={(value) => setForm((prev) => ({ ...prev, departmentId: value }))}
+                        placeholder={t("placeholders.category")}
+                        searchPlaceholder={t("searchDepartments")}
+                        emptyText={t("noDepartmentsFound")}
+                        typeSomethingText={t("typeSomethingToSearch")}
+                        onSearch={searchDepartments}
+                        isLoading={isLoading}
+                      />
                     </div>
 
                     <div>
@@ -564,11 +578,11 @@ export default function SubmitIssuePage() {
             )}
 
             {/* Error Display */}
-            {createError && (
+            {(createError || minimalError) && (
               <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
                 <div className="flex items-center gap-2 text-destructive">
                   <AlertCircle className="h-4 w-4" />
-                  <span className="text-sm font-medium">Error: {createError}</span>
+                  <span className="text-sm font-medium">Error: {createError || minimalError}</span>
                 </div>
               </div>
             )}
@@ -588,7 +602,7 @@ export default function SubmitIssuePage() {
                 <Button
                   type="submit"
                   className="w-full"
-                  disabled={isCreating || !form.title || !form.description || !form.category}
+                  disabled={isCreating || !form.title || !form.description || !form.departmentId}
                 >
                   <Send className="h-4 w-4 mr-2" />
                   {isCreating ? t("loading") : t("submit")}

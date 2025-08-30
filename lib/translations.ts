@@ -111,6 +111,7 @@ export const translations = {
       email: "Injiza imeyili yawe",
       issueTitle: "Andika umutwe w'ikibazo cyawe",
       issueDescription: "Sobanura ikibazo cyawe mu buryo burambuye...",
+      category: "Hitamo icyiciro...",
       ticketId: "Injiza nimero y'icyemezo cyawe",
       additionalInfo: "Ongeraho amakuru y'inyongera...",
       comments: "Andika ibitekerezo byawe...",
@@ -146,6 +147,9 @@ export const translations = {
     suggestion: "Ibyifuzo",
     isPublic: "Ni byo rubanda rwose",
     isPublicDescription: "Rubanda rwose rurashobora kubona kohereza ryawe",
+    searchDepartments: "Shakisha ibyiciro...",
+    noDepartmentsFound: "Nta kicyiciro cyabonetse",
+    typeSomethingToSearch: "Andika ikintu kugira ngo ushakishe...",
   },
   en: {
     // Navigation
@@ -256,6 +260,7 @@ export const translations = {
       email: "Enter your email address",
       issueTitle: "Enter the title of your issue",
       issueDescription: "Describe your issue in detail...",
+      category: "Select a category...",
       ticketId: "Enter your ticket ID",
       additionalInfo: "Add additional information...",
       comments: "Write your comments...",
@@ -291,6 +296,9 @@ export const translations = {
     suggestion: "Suggestion",
     isPublic: "This is public",
     isPublicDescription: "Everyone can see your submission",
+    searchDepartments: "Search departments...",
+    noDepartmentsFound: "No departments found",
+    typeSomethingToSearch: "Type something to search...",
   },
   fr: {
     // Navigation
@@ -402,6 +410,7 @@ export const translations = {
       email: "Entrez votre adresse email",
       issueTitle: "Entrez le titre de votre problème",
       issueDescription: "Décrivez votre problème en détail...",
+      category: "Sélectionnez une catégorie...",
       ticketId: "Entrez votre ID de ticket",
       additionalInfo: "Ajoutez des informations supplémentaires...",
       comments: "Écrivez vos commentaires...",
@@ -437,6 +446,9 @@ export const translations = {
     suggestion: "Suggestion",
     isPublic: "Ceci est public",
     isPublicDescription: "Tout le monde peut voir votre soumission",
+    searchDepartments: "Rechercher des départements...",
+    noDepartmentsFound: "Aucun département trouvé",
+    typeSomethingToSearch: "Tapez quelque chose pour rechercher...",
   },
 }
 
