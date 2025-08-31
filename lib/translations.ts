@@ -7,7 +7,7 @@ export const translations = {
     submitIssue: "Tanga Ikibazo",
     viewOpinions: "Reba Ibitekerezo",
     followUp: "Gukurikirana",
-    publicOpinions: "Ibitekerezo bya Rubanda",
+    publicOpinions: "Ibitekerezo bya Abaturage",
     language: "Ururimi",
 
     // Home page
@@ -103,7 +103,7 @@ export const translations = {
     kinyarwanda: "Ikinyarwanda",
     english: "Icyongereza",
     french: "Igifaransa",
-    makeProfilePublic: "Kora ikiboneka cyawe rubanda rwose",
+    makeProfilePublic: "Kora ikiboneka cyawe abaturage rwose",
     publicProfileDescription: "Iyo byakozwe, amazina yawe azaba aboneka kuri ibibazo n'ibitekerezo ukohereza",
     notifications: "Kumenyesha",
     chooseUpdates: "Hitamo amakuru ushaka kwakira",
@@ -247,8 +247,8 @@ export const translations = {
     positiveFeedback: "Ibitekerezo Byiza",
     negativeFeedback: "Ibitekerezo Bibi",
     suggestion: "Ibyifuzo",
-    isPublic: "Ni byo rubanda rwose",
-    isPublicDescription: "Rubanda rwose rurashobora kubona kohereza ryawe",
+    isPublic: "Ni byo abaturage rwose",
+    isPublicDescription: "Abaturage rwose rurashobora kubona kohereza ryawe",
     searchDepartments: "Shakisha ibyiciro...",
     noDepartmentsFound: "Nta kicyiciro cyabonetse",
     typeSomethingToSearch: "Andika ikintu kugira ngo ushakishe...",
