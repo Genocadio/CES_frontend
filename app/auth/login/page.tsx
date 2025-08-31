@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { LanguageSwitcher } from "@/components/language-switcher"
 import { useLanguage } from "@/hooks/use-language"
-import { useAuth } from "@/hooks/use-auth"
+import { useAuth } from "@/lib/hooks/use-auth"
 import { ArrowLeft, LogIn, Eye, EyeOff } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
@@ -19,7 +19,7 @@ export default function LoginPage() {
   const { login, isLoading } = useAuth()
   const router = useRouter()
   const [formData, setFormData] = useState({
-    email: "",
+    emailOrPhone: "",
     password: "",
   })
   const [showPassword, setShowPassword] = useState(false)
@@ -29,11 +29,11 @@ export default function LoginPage() {
     e.preventDefault()
     setError("")
 
-    const success = await login(formData.email, formData.password)
+    const success = await login(formData.emailOrPhone, formData.password)
     if (success) {
       router.push("/dashboard")
     } else {
-      setError("Invalid email or password. Try: any email with password &apos;password&apos;")
+      setError(t("invalidCredentials"))
     }
   }
 
@@ -59,32 +59,32 @@ export default function LoginPage() {
               <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
                 <LogIn className="h-8 w-8 text-primary" />
               </div>
-              <CardTitle className="text-2xl">Welcome Back</CardTitle>
-              <CardDescription>Sign in to your account to manage your issues and track progress</CardDescription>
+              <CardTitle className="text-2xl">{t("welcomeBack")}</CardTitle>
+              <CardDescription>{t("signInToAccount")}</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <Label htmlFor="email">{t("email")} *</Label>
+                  <Label htmlFor="emailOrPhone">{t("emailOrPhone")}</Label>
                   <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
-                    placeholder="your@email.com"
+                    id="emailOrPhone"
+                    type="text"
+                    value={formData.emailOrPhone}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, emailOrPhone: e.target.value }))}
+                    placeholder={t("placeholders.emailOrPhone")}
                     required
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="password">Password *</Label>
+                  <Label htmlFor="password">{t("password")} *</Label>
                   <div className="relative">
                     <Input
                       id="password"
                       type={showPassword ? "text" : "password"}
                       value={formData.password}
                       onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
-                      placeholder="Enter your password"
+                      placeholder={t("enterPassword")}
                       required
                     />
                     <Button
@@ -102,26 +102,16 @@ export default function LoginPage() {
                 {error && <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">{error}</div>}
 
                 <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Signing in..." : "Sign In"}
+                  {isLoading ? t("signingIn") : t("signIn")}
                 </Button>
               </form>
 
               <div className="mt-6 text-center">
-                                  <p className="text-sm text-muted-foreground">
-                    Don&apos;t have an account?{" "}
-                    <Link href="/auth/register" className="text-primary hover:underline">
-                      Register here
-                    </Link>
-                  </p>
-              </div>
-
-              <div className="mt-4 p-3 bg-muted rounded-md">
-                <p className="text-xs text-muted-foreground">
-                  <strong>Demo accounts:</strong> Use any email with password &quot;password&quot; to login, or try:
-                  <br />
-                  jean@example.com / password
-                  <br />
-                  marie@example.com / password
+                <p className="text-sm text-muted-foreground">
+                  {t("dontHaveAccount")}{" "}
+                  <Link href="/auth/register" className="text-primary hover:underline">
+                    {t("registerHere")}
+                  </Link>
                 </p>
               </div>
             </CardContent>

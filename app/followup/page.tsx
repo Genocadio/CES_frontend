@@ -8,34 +8,25 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { LanguageSwitcher } from "@/components/language-switcher"
+import { SharedHeader } from "../components/shared-header"
 import { useLanguage } from "@/hooks/use-language"
-import { ArrowLeft, Search, MessageSquare, Clock, CheckCircle, XCircle, FileText, Plus, X } from "lucide-react"
+import { Search, MessageSquare, Clock, CheckCircle, XCircle, FileText, Plus, X, Upload, Phone } from "lucide-react"
 import Link from "next/link"
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useSearchParams } from "next/navigation"
 import { useFetchIssue, type IssueResponseDto } from "@/lib/hooks/use-fetch-issue"
+import { useUpdateIssue } from "@/lib/hooks/use-update-issue"
 import { useDepartments } from "@/lib/hooks/use-departments"
-
-interface Comment {
-  id: string
-  text: string
-  author: string
-  createdAt: Date
-}
+import { AttachmentType } from "@/lib/hooks/use-cloudinary-upload"
+import { Combobox } from "@/components/ui/combobox"
 
 export default function FollowupPage() {
   const { t, language } = useLanguage()
   const searchParams = useSearchParams()
   const [ticketId, setTicketId] = useState("")
-  const [newComment, setNewComment] = useState("")
-  const [isAddingComment, setIsAddingComment] = useState(false)
-  const [showAddInfo, setShowAddInfo] = useState(false)
+
   const [showCompleteForm, setShowCompleteForm] = useState(false)
-  const [additionalInfo, setAdditionalInfo] = useState({
-    description: "",
-    attachments: [] as File[],
-  })
+  const [showSearchOverlay, setShowSearchOverlay] = useState(false)
   const [issueDetails, setIssueDetails] = useState({
     title: "",
     description: "",
@@ -47,10 +38,21 @@ export default function FollowupPage() {
   })
 
   // Use the new hook to fetch issues
-  const { issue, isLoading, error, fetchIssue, resetError } = useFetchIssue()
+  const { isLoading, error, resetError } = useFetchIssue()
 
   // Initialize departments hook
-  const { departments, searchDepartments, isLoading: departmentsLoading, error: departmentsError } = useDepartments()
+  const { departments, searchDepartments, isLoading: departmentsLoading } = useDepartments()
+  
+  // Initialize update issue hook
+  const { updateIssue, resetError: resetUpdateError } = useUpdateIssue()
+
+  // Ref to track if we've already fetched a specific ticket ID
+  const fetchedTicketIdRef = useRef<string | null>(null)
+  
+  // Local state for the issue to avoid hook dependency issues
+  const [localIssue, setLocalIssue] = useState<IssueResponseDto | null>(null)
+  const [localIsLoading, setLocalIsLoading] = useState(false)
+  const [localError, setLocalError] = useState<string | null>(null)
 
   // Issue types for the form
   const issueTypes = [
@@ -64,78 +66,132 @@ export default function FollowupPage() {
     if (!idToSearch.trim()) return
 
     resetError()
-    await fetchIssue(idToSearch)
-  }, [ticketId, fetchIssue, resetError])
+    
+    // Use local state to avoid hook dependency issues
+    const fetchData = async () => {
+      setLocalIsLoading(true)
+      setLocalError(null)
+      
+      try {
+        const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api'
+        const response = await fetch(`${baseUrl}/issues/ticket/${idToSearch}`)
+        
+        if (!response.ok) {
+          if (response.status === 404) {
+            throw new Error('Ticket not found')
+          }
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.message || `HTTP error! status: ${response.status}`)
+        }
+        
+        const data = await response.json()
+        setLocalIssue(data)
+        setTicketId(idToSearch)
+        fetchedTicketIdRef.current = idToSearch
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch issue'
+        setLocalError(errorMessage)
+        console.error('Fetch issue error:', err)
+      } finally {
+        setLocalIsLoading(false)
+      }
+    }
+    
+    await fetchData()
+  }, [ticketId, resetError])
 
-  // Check for ticket ID in URL params
+  // Check for ticket ID in URL params - only run once per ticket ID
   useEffect(() => {
     const urlTicketId = searchParams.get("id")
-    if (urlTicketId) {
+    if (urlTicketId && urlTicketId !== fetchedTicketIdRef.current) {
       setTicketId(urlTicketId)
-      // Call fetchIssue directly to avoid recursive dependency
-      fetchIssue(urlTicketId)
+      fetchedTicketIdRef.current = urlTicketId
+      
+      // Use local state to avoid hook dependency issues
+      const fetchData = async () => {
+        setLocalIsLoading(true)
+        setLocalError(null)
+        setLocalIssue(null)
+        
+        try {
+          const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api'
+          const response = await fetch(`${baseUrl}/issues/ticket/${urlTicketId}`)
+          
+          if (!response.ok) {
+            if (response.status === 404) {
+              throw new Error('Ticket not found')
+            }
+            const errorData = await response.json().catch(() => ({}))
+            throw new Error(errorData.message || `HTTP error! status: ${response.status}`)
+          }
+          
+          const data = await response.json()
+          setLocalIssue(data)
+        } catch (err) {
+          const errorMessage = err instanceof Error ? err.message : 'Failed to fetch issue'
+          setLocalError(errorMessage)
+          console.error('Fetch issue error:', err)
+        } finally {
+          setLocalIsLoading(false)
+        }
+      }
+      
+      fetchData()
     }
-  }, [searchParams, fetchIssue])
+  }, [searchParams]) // Only depend on searchParams
 
-  const handleAddComment = async () => {
-    if (!newComment.trim() || !issue) return
 
-    setIsAddingComment(true)
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
 
-    const comment: Comment = {
-      id: Date.now().toString(),
-      text: newComment,
-      author: "You",
-      createdAt: new Date(),
-    }
 
-    // Note: In a real app, you would call an API to add the comment
-    // For now, we'll just clear the input
-    setNewComment("")
-    setIsAddingComment(false)
-  }
-
-  const handleAddMoreInfo = async () => {
-    if (!additionalInfo.description.trim() || !issue) return
-
-    setIsAddingComment(true)
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-
-    // Note: In a real app, you would call an API to add additional info
-    // For now, we'll just clear the form
-    setAdditionalInfo({ description: "", attachments: [] })
-    setShowAddInfo(false)
-    setIsAddingComment(false)
-  }
 
   const handleCompleteIssue = async () => {
-    if (!issue || !issueDetails.title.trim() || !issueDetails.description.trim() || !issueDetails.departmentId || !issueDetails.issueType) {
+    if (!localIssue || !issueDetails.title.trim() || !issueDetails.description.trim() || !issueDetails.departmentId || !issueDetails.issueType) {
       return
     }
 
-    setIsAddingComment(true)
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000))
 
-    // Note: In a real app, you would call an API to update the issue with the new details
-    // For now, we'll just clear the form and show success message
-    setIssueDetails({ 
-      title: "", 
-      description: "", 
-      departmentId: "", 
-      issueType: "", 
-      isPublic: true, 
-      attachments: [], 
-      additionalInfo: "" 
-    })
-    setShowCompleteForm(false)
-    setIsAddingComment(false)
-    
-    // Show success message (you could add a state for this)
-    alert("Issue completed successfully! Your issue has been updated with the additional details.")
+    resetUpdateError()
+
+    try {
+      // Call the update issue API
+      const updatedIssue = await updateIssue({
+        id: localIssue.id,
+        title: issueDetails.title,
+        description: issueDetails.description,
+        issueType: issueDetails.issueType,
+        departmentId: parseInt(issueDetails.departmentId),
+        isPrivate: !issueDetails.isPublic,
+        attachments: issueDetails.attachments.map(file => ({
+          url: URL.createObjectURL(file),
+          type: file.type.startsWith('image/') ? AttachmentType.PHOTO : 
+                file.type.startsWith('video/') ? AttachmentType.VIDEO : 
+                file.type.startsWith('audio/') ? AttachmentType.AUDIO : 
+                file.type === 'application/pdf' ? AttachmentType.PDF : AttachmentType.DOCUMENT,
+          description: file.name
+        }))
+      })
+
+      if (updatedIssue) {
+        // Update the local issue with the returned data
+        setLocalIssue(updatedIssue as IssueResponseDto)
+        
+        // Clear the form
+        setIssueDetails({ 
+          title: "", 
+          description: "", 
+          departmentId: "", 
+          issueType: "", 
+          isPublic: true, 
+          attachments: [], 
+          additionalInfo: "" 
+        })
+        setShowCompleteForm(false)
+        
+
+      }
+    } catch (error) {
+      console.error('Failed to complete issue:', error)
+    }
   }
 
   const getStatusColor = (status: string) => {
@@ -153,82 +209,90 @@ export default function FollowupPage() {
     }
   }
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "received":
-        return <Clock className="h-4 w-4" />
-      case "in-progress":
-        return <FileText className="h-4 w-4" />
-      case "resolved":
-        return <CheckCircle className="h-4 w-4" />
-      case "closed":
-        return <XCircle className="h-4 w-4" />
-      default:
-        return <Clock className="h-4 w-4" />
-    }
-  }
+
+
+
 
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-2 text-foreground hover:text-primary">
-              <ArrowLeft className="h-4 w-4" />
-              {t("back")}
-            </Link>
-            <LanguageSwitcher />
-          </div>
-        </div>
-      </header>
+      <SharedHeader showHomeButton={true} />
 
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-foreground mb-2">{t("followUp")}</h1>
-            <p className="text-muted-foreground">Track your issue status and add additional information</p>
+            <p className="text-muted-foreground">{t("followUpDescription")}</p>
           </div>
 
-          {/* Search Section */}
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Search className="h-5 w-5" />
-                {t("enterTicketId")}
-              </CardTitle>
-              <CardDescription>Enter your ticket ID to view the current status and details</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-4">
-                <div className="flex-1">
+          {/* Floating Search Component */}
+          <div className="fixed top-6 right-6 z-50">
+            {!showSearchOverlay ? (
+              // Minimized search button
+              <Button
+                onClick={() => setShowSearchOverlay(true)}
+                size="sm"
+                className="rounded-full w-12 h-12 p-0 shadow-lg bg-green-600 hover:bg-green-700 text-white border-0 font-bold"
+                title={t("searchNewTicket")}
+              >
+                <Search className="h-4 w-4" />
+              </Button>
+            ) : (
+              // Expanded search form that overlays current content
+              <Card className="w-80 shadow-lg bg-background/95 backdrop-blur-sm border-border">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2 text-sm">
+                      <Search className="h-4 w-4" />
+                      {t("enterTicketId")}
+                    </CardTitle>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowSearchOverlay(false)}
+                      className="h-6 w-6 p-0"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
                   <Input
                     placeholder={t("placeholders.ticketId")}
                     value={ticketId}
                     onChange={(e) => setTicketId(e.target.value)}
                     onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+                    className="text-sm"
                   />
-                </div>
-                <Button onClick={() => handleSearch()} disabled={isLoading || !ticketId.trim()}>
-                  {isLoading ? t("loading") : t("search")}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+                  <Button 
+                    onClick={() => {
+                      handleSearch()
+                      setShowSearchOverlay(false)
+                    }} 
+                    disabled={isLoading || localIsLoading || !ticketId.trim()}
+                    size="sm"
+                    className="w-full"
+                  >
+                    {isLoading || localIsLoading ? t("loading") : t("search")}
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+          </div>
 
           {/* Error Message */}
-          {error && (
+          {(error || localError) && (
             <Card className="mb-8">
               <CardContent className="pt-6">
                 <div className="text-center py-8">
                   <XCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-semibold mb-2">
-                    {error === 'Ticket not found' ? 'Ticket Not Found' : 'Error'}
+                    {(error || localError) === 'Ticket not found' ? 'Ticket Not Found' : 'Error'}
                   </h3>
                   <p className="text-muted-foreground mb-4">
-                    {error === 'Ticket not found' 
+                    {(error || localError) === 'Ticket not found' 
                       ? `We couldn't find an issue with ticket ID "${ticketId}". Please check the ID and try again.`
-                      : error
+                      : (error || localError)
                     }
                   </p>
                   <Link href="/submit">
@@ -239,216 +303,165 @@ export default function FollowupPage() {
             </Card>
           )}
 
-          {/* Issue Details */}
-          {issue && (
+                                        {/* Issue Details and Contact Information - Reorganized */}
+          {localIssue && (
             <div className="space-y-6">
-              {/* Status Card */}
+              {/* Contact Information Card - Always shown */}
               <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2">
-                      {getStatusIcon(issue.status)}
-                      Issue Details
-                    </CardTitle>
-                    <Badge className={getStatusColor(issue.status || 'received')}>{t(issue.status || 'received')}</Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Ticket ID</Label>
-                    <p className="font-mono text-lg">{issue.ticketId}</p>
-                  </div>
-
-                  <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Title</Label>
-                    <p className="text-lg font-semibold">{issue.title || 'No title provided'}</p>
-                  </div>
-
-                  <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Description</Label>
-                    <p className="text-foreground">{issue.description || 'No description provided'}</p>
-                  </div>
-
-                  <div className="grid md:grid-cols-3 gap-4">
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Department</Label>
-                      <p className="capitalize">
-                        {issue.department 
-                          ? (language === 'rw' ? issue.department.nameRw : language === 'fr' ? issue.department.nameFr : issue.department.nameEn)
-                          : 'Not assigned'
-                        }
-                      </p>
+                <CardContent className="p-4">
+                  <div className="grid grid-cols-2 gap-4 mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">{t("fullName")}:</span>
+                      <span className="font-medium text-sm">{localIssue.createdBy?.firstName} {localIssue.createdBy?.lastName}</span>
                     </div>
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Issue Type</Label>
-                      <p className="capitalize">{issue.issueType || 'Not specified'}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Submitted</Label>
-                      <p>{issue.createdAt ? new Date(issue.createdAt).toLocaleDateString() : 'Date not available'}</p>
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium text-sm">{localIssue.createdBy?.phoneNumber}</span>
                     </div>
                   </div>
 
-                  {issue.attachments && issue.attachments.length > 0 && (
-                    <div>
-                      <Label className="text-sm font-medium text-muted-foreground">Attachments</Label>
-                      <div className="flex gap-2 mt-2">
-                        {issue.attachments.map((attachment, index) => (
-                          <div key={index} className="flex items-center gap-2 p-2 bg-muted rounded">
-                            <FileText className="h-4 w-4" />
-                            <span className="text-sm">{attachment.description || attachment.url.split("/").pop()}</span>
-                          </div>
-                        ))}
+                  <div className="grid grid-cols-2 gap-4 mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">{t("ticketId")}:</span>
+                      <span className="font-mono text-sm font-bold">{localIssue.ticketId}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium text-sm">
+                        {localIssue.createdAt ? new Date(localIssue.createdAt).toLocaleDateString() : t("dateNotAvailable")}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Email if exists */}
+                  {localIssue.createdBy?.email && (
+                    <div className="mt-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">{t("email")}:</span>
+                        <span className="font-medium text-sm">{localIssue.createdBy.email}</span>
                       </div>
                     </div>
                   )}
                 </CardContent>
               </Card>
 
-              {/* Progress Timeline */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Progress Timeline</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-4">
-                      <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium">Issue Submitted</p>
-                        <p className="text-sm text-muted-foreground">
-                          {issue.createdAt ? new Date(issue.createdAt).toLocaleString() : 'Date not available'}
-                        </p>
+              {/* Issue Details Card - Only shown for complete issues */}
+              {(localIssue.title && localIssue.description && localIssue.issueType) && (
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <Badge className={getStatusColor(localIssue.status || "received")}>
+                          {localIssue.status === "received" ? t("received") : 
+                           localIssue.status === "in-progress" ? t("inProgress") : 
+                           localIssue.status === "resolved" ? t("resolved") : 
+                           localIssue.status === "closed" ? t("closed") : t("received")}
+                        </Badge>
+                        {localIssue.department && (
+                          <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                            {language === 'rw' ? localIssue.department.nameRw : language === 'fr' ? localIssue.department.nameFr : localIssue.department.nameEn}
+                          </Badge>
+                        )}
                       </div>
                     </div>
 
-                    {(issue.status && issue.status !== "received") && (
-                      <div className="flex items-center gap-4">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                          <FileText className="h-4 w-4 text-blue-600" />
-                        </div>
-                        <div>
-                          <p className="font-medium">Under Review</p>
-                          <p className="text-sm text-muted-foreground">Your issue is being reviewed by our team</p>
-                        </div>
+                    <div className="space-y-3">
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">{t("title")}</Label>
+                        <p className="mt-1 text-foreground">{localIssue.title}</p>
                       </div>
-                    )}
 
-                    {(issue.status && (issue.status === "resolved" || issue.status === "closed")) && (
-                      <div className="flex items-center gap-4">
-                        <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                        </div>
-                        <div>
-                          <p className="font-medium">Issue Resolved</p>
-                          <p className="text-sm text-muted-foreground">The issue has been successfully addressed</p>
-                        </div>
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">{t("description")}</Label>
+                        <p className="mt-1 text-foreground">{localIssue.description}</p>
                       </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
 
-              {/* Minimal Issue Notice */}
-              {(!issue.title || !issue.description || !issue.issueType) && (
-                <Card className="border-amber-200 bg-amber-50">
-                  <CardHeader>
-                    <CardTitle className="text-amber-800">Quick Issue - More Details Needed</CardTitle>
-                    <CardDescription className="text-amber-700">
-                      This is a quick issue submission. To help us better assist you, please provide more details below.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="p-4 bg-amber-100 rounded-lg">
-                        <h4 className="font-medium text-amber-800 mb-2">Current Information:</h4>
-                        <div className="grid md:grid-cols-2 gap-4 text-sm">
-                          <div>
-                            <span className="font-medium text-amber-700">Name:</span>
-                            <p className="text-amber-800">
-                              {issue.createdBy?.firstName || 'N/A'} {issue.createdBy?.lastName || ''}
-                            </p>
+                      {localIssue.attachments && localIssue.attachments.length > 0 && (
+                        <div>
+                          <Label className="text-sm font-medium text-muted-foreground">{t("attachments")}</Label>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {localIssue.attachments.map((attachment, index) => (
+                              <Badge key={index} variant="outline" className="text-sm">
+                                <FileText className="h-4 w-4 mr-2" />
+                                {attachment.description || attachment.url.split("/").pop()}
+                              </Badge>
+                            ))}
                           </div>
-                          <div>
-                            <span className="font-medium text-amber-700">Phone:</span>
-                            <p className="text-amber-800">{issue.createdBy?.phoneNumber || 'N/A'}</p>
-                          </div>
-                          {issue.createdBy?.email && (
-                            <div>
-                              <span className="font-medium text-amber-700">Email:</span>
-                              <p className="text-amber-800">{issue.createdBy.email}</p>
-                            </div>
-                          )}
                         </div>
-                      </div>
-                      <p className="text-sm text-amber-700">
-                        <strong>Note:</strong> Your contact information cannot be changed. Use the form below to add more details about your issue.
-                      </p>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
               )}
 
-              {/* Comments Section */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <MessageSquare className="h-5 w-5" />
-                    Comments & Updates
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {!issue.comments || issue.comments.length === 0 ? (
-                    <p className="text-muted-foreground text-center py-4">No comments yet</p>
-                  ) : (
-                    <div className="space-y-4">
-                      {issue.comments.map((comment) => (
-                        <div key={comment.id} className="border-l-4 border-primary pl-4">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-medium text-sm">
-                              {comment.author?.firstName} {comment.author?.lastName}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {comment.createdAt ? new Date(comment.createdAt).toLocaleString() : 'Date not available'}
-                            </span>
-                          </div>
-                          <p className="text-foreground">{comment.text}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
 
-                  {/* Add Comment */}
-                  <div className="border-t pt-4">
-                    <Label htmlFor="new-comment">Add a comment or question</Label>
-                    <Textarea
-                      id="new-comment"
-                      placeholder={t("placeholders.comments")}
-                      value={newComment}
-                      onChange={(e) => setNewComment(e.target.value)}
-                      className="mt-2"
-                    />
-                    <Button
-                      onClick={handleAddComment}
-                      disabled={!newComment.trim() || isAddingComment}
-                      className="mt-2"
-                    >
-                      {isAddingComment ? t("loading") : "Add Comment"}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+
+
+
+              {/* Comments Section - Only show for complete issues */}
+              {(localIssue.title && localIssue.description && localIssue.issueType) && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <MessageSquare className="h-5 w-5" />
+                      {t("commentsAndUpdates")}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {!localIssue.comments || localIssue.comments.length === 0 ? (
+                      <p className="text-muted-foreground text-center py-4">{t("noCommentsYet")}</p>
+                    ) : (
+                      <div className="space-y-4">
+                        {localIssue.comments.map((comment) => (
+                          <div key={comment.id} className="border-l-4 border-primary pl-4">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-medium text-sm">
+                                {comment.author?.firstName} {comment.author?.lastName}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {comment.createdAt ? new Date(comment.createdAt).toLocaleString() : 'Date not available'}
+                              </span>
+                            </div>
+                            <p className="text-foreground">{comment.text}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                                         {/* Add Comment - Only for logged-in users */}
+                     {/* TODO: Add authentication check here */}
+                     {/* For now, hiding comment form for all users */}
+                     {/* 
+                     <div className="border-t pt-4">
+                       <Label htmlFor="new-comment">{t("addCommentOrQuestion")}</Label>
+                       <Textarea
+                         id="new-comment"
+                         placeholder={t("placeholders.comments")}
+                         value={newComment}
+                         onChange={(e) => setNewComment(e.target.value)}
+                         className="mt-2"
+                       />
+                       <Button
+                         onClick={handleAddComment}
+                         disabled={!newComment.trim() || isAddingComment}
+                         className="mt-2"
+                       >
+                         {isAddingComment ? t("loading") : t("addComment")}
+                       </Button>
+                     </div>
+                     */}
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Complete Issue Form - Only show for incomplete issues */}
-              {(!issue.title || !issue.description || !issue.issueType) && !showCompleteForm && (
+              {(!localIssue.title || !localIssue.description || !localIssue.issueType) && !showCompleteForm && (
                 <Card className="ring-2 ring-amber-500 bg-amber-50">
                   <CardHeader>
-                    <CardTitle className="text-amber-800">Complete Your Issue Details</CardTitle>
-                    <CardDescription className="text-amber-700">
-                      This is a quick issue submission. Please provide the missing details to help us assist you better.
-                    </CardDescription>
+                                         <CardTitle className="text-amber-800">{t("completeYourIssueDetails")}</CardTitle>
+                     <CardDescription className="text-amber-700">
+                       {t("quickIssueFormDescription")}
+                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <Button 
@@ -456,264 +469,189 @@ export default function FollowupPage() {
                       className="bg-amber-600 hover:bg-amber-700 w-full"
                     >
                       <Plus className="h-4 w-4 mr-2" />
-                      Complete Issue Details
+                      {t("completeIssueDetails")}
                     </Button>
                   </CardContent>
                 </Card>
               )}
 
-              {/* Complete Issue Form - Expanded form */}
-              {(!issue.title || !issue.description || !issue.issueType) && showCompleteForm && (
+              {/* Complete Issue Form - Expanded form (copy-paste from submit page) */}
+              {(!localIssue.title || !localIssue.description || !localIssue.issueType) && showCompleteForm && (
                 <Card className="ring-2 ring-amber-500 bg-amber-50">
                   <CardHeader>
-                    <CardTitle className="text-amber-800">Complete Your Issue Details</CardTitle>
+                    <CardTitle className="text-amber-800">{t("completeYourIssueDetails")}</CardTitle>
                     <CardDescription className="text-amber-700">
-                      This is a quick issue submission. Please provide the missing details to help us assist you better.
+                      {t("quickIssueFormDescription")}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <form onSubmit={(e) => { e.preventDefault(); handleCompleteIssue(); }} className="space-y-6">
-                      {/* Basic Issue Information */}
-                      <div className="space-y-4">
-                        <h4 className="font-medium text-amber-800">Required Information</h4>
-                        
-                        <div>
-                          <Label htmlFor="issue-title">Issue Title *</Label>
-                          <Input
-                            id="issue-title"
-                            placeholder="Brief description of your issue"
-                            value={issueDetails.title}
-                            onChange={(e) => setIssueDetails(prev => ({ ...prev, title: e.target.value }))}
-                            required
-                            className="mt-1"
-                          />
-                        </div>
+                      {/* Issue Details - Copy-paste from submit page */}
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>{t("issueDetails")}</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                                                     <div>
+                             <Label htmlFor="title">{t("title")} *</Label>
+                             <Input
+                               id="title"
+                               value={issueDetails.title}
+                               onChange={(e) => setIssueDetails(prev => ({ ...prev, title: e.target.value }))}
+                               placeholder={t("placeholders.issueTitle")}
+                               required
+                             />
+                           </div>
 
-                        <div>
-                          <Label htmlFor="issue-description">Issue Description *</Label>
-                          <Textarea
-                            id="issue-description"
-                            placeholder="Detailed description of your issue"
-                            value={issueDetails.description}
-                            onChange={(e) => setIssueDetails(prev => ({ ...prev, description: e.target.value }))}
-                            rows={4}
-                            required
-                            className="mt-1"
-                          />
-                        </div>
-                      </div>
+                                                     <div>
+                             <Label htmlFor="description">{t("description")} *</Label>
+                            <Textarea
+                              id="description"
+                              value={issueDetails.description}
+                              onChange={(e) => setIssueDetails(prev => ({ ...prev, description: e.target.value }))}
+                              placeholder={t("placeholders.issueDescription")}
+                              rows={4}
+                              required
+                            />
+                          </div>
 
-                      {/* Category and Issue Type */}
-                      <div className="grid md:grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="issue-category">Category/Department *</Label>
-                          <Select
-                            value={issueDetails.departmentId}
-                            onValueChange={(value) => setIssueDetails(prev => ({ ...prev, departmentId: value }))}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select department" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {departments.map((dept) => (
-                                <SelectItem key={dept.id} value={dept.id.toString()}>
-                                  {language === 'rw' ? dept.nameRw : language === 'fr' ? dept.nameFr : dept.nameEn}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
+                          <div className="grid md:grid-cols-2 gap-4">
+                            <div>
+                              <Label>{t("category")} *</Label>
+                              <Combobox
+                                options={departments.map(dept => ({
+                                  value: dept.id.toString(),
+                                  label: language === 'rw' ? dept.nameRw : language === 'fr' ? dept.nameFr : dept.nameEn,
+                                  id: dept.id
+                                }))}
+                                value={issueDetails.departmentId}
+                                onValueChange={(value: string) => setIssueDetails(prev => ({ ...prev, departmentId: value }))}
+                                placeholder={t("placeholders.category")}
+                                emptyText={t("noDepartmentsFound")}
+                                typeSomethingText={t("typeSomethingToSearch")}
+                                onSearch={searchDepartments}
+                                isLoading={departmentsLoading}
+                              />
+                            </div>
 
-                        <div>
-                          <Label htmlFor="issue-type">Issue Type *</Label>
-                          <Select
-                            value={issueDetails.issueType}
-                            onValueChange={(value) => setIssueDetails(prev => ({ ...prev, issueType: value }))}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select issue type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {issueTypes.map((type) => (
-                                <SelectItem key={type.value} value={type.value}>
-                                  {type.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
+                            <div>
+                              <Label>{t("issueType")}</Label>
+                              <Select
+                                value={issueDetails.issueType}
+                                onValueChange={(value) => setIssueDetails(prev => ({ ...prev, issueType: value }))}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {issueTypes.map((issueType) => (
+                                    <SelectItem key={issueType.value} value={issueType.value}>
+                                      {issueType.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
 
-                      {/* Privacy Settings */}
-                      <div className="space-y-3">
-                        <h4 className="font-medium text-amber-800">Privacy Settings</h4>
-                        
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id="is-public"
-                            checked={issueDetails.isPublic}
-                            onCheckedChange={(checked) => setIssueDetails(prev => ({ ...prev, isPublic: !!checked }))}
-                          />
-                          <Label htmlFor="is-public">
-                            Make this issue public - {issueDetails.isPublic ? "Visible to everyone" : "Only visible to staff"}
-                          </Label>
-                        </div>
-                      </div>
-
-                      {/* Attachments */}
-                      <div className="space-y-3">
-                        <h4 className="font-medium text-amber-800">Attachments</h4>
-                        
-                        <div>
-                          <input
-                            type="file"
-                            multiple
-                            onChange={(e) => {
-                              if (e.target.files) {
-                                setIssueDetails(prev => ({
-                                  ...prev,
-                                  attachments: [...prev.attachments, ...Array.from(e.target.files!)]
-                                }))
-                              }
-                            }}
-                            className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
-                          />
-                        </div>
-
-                        {issueDetails.attachments.length > 0 && (
-                          <div className="space-y-2">
-                            {issueDetails.attachments.map((file, index) => (
-                              <div key={index} className="flex items-center justify-between p-2 bg-amber-100 rounded-lg">
-                                <div className="flex items-center gap-2">
-                                  <FileText className="h-4 w-4 text-amber-600" />
-                                  <span className="text-sm text-amber-800">{file.name}</span>
-                                  <span className="text-xs text-amber-600">
-                                    ({(file.size / 1024 / 1024).toFixed(2)} MB)
-                                  </span>
-                                </div>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
+                          <div>
+                            <Label>{t("attachments")}</Label>
+                            <div className="mt-2">
+                              <input
+                                type="file"
+                                multiple
+                                onChange={(e) => {
+                                  if (e.target.files) {
                                     setIssueDetails(prev => ({
                                       ...prev,
-                                      attachments: prev.attachments.filter((_, i) => i !== index)
+                                      attachments: [...prev.attachments, ...Array.from(e.target.files!)]
                                     }))
-                                  }}
-                                  className="h-6 w-6 p-0 hover:bg-amber-200 hover:text-amber-800"
-                                >
-                                  <X className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            ))}
+                                  }
+                                }}
+                                className="hidden"
+                                id="file-upload"
+                                accept="image/*,.pdf,.doc,.docx"
+                              />
+                              <label
+                                htmlFor="file-upload"
+                                className="flex items-center gap-2 p-4 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary transition-colors"
+                              >
+                                <Upload className="h-5 w-5 text-muted-foreground" />
+                                <span className="text-muted-foreground">{t("attachFiles")}</span>
+                              </label>
+                              {issueDetails.attachments.length > 0 && (
+                                <div className="mt-2 space-y-2">
+                                  {issueDetails.attachments.map((file, index) => (
+                                    <div key={index} className="flex items-center justify-between p-2 bg-muted rounded-lg">
+                                      <div className="flex items-center gap-2">
+                                        <CheckCircle className="h-4 w-4 text-green-600" />
+                                        <span className="text-sm text-muted-foreground">
+                                          {file.name}
+                                        </span>
+                                        <span className="text-xs text-muted-foreground">
+                                          ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                                        </span>
+                                      </div>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => {
+                                          setIssueDetails(prev => ({
+                                            ...prev,
+                                            attachments: prev.attachments.filter((_, i) => i !== index)
+                                          }))
+                                        }}
+                                        className="h-6 w-6 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                                      >
+                                        <X className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        )}
-                      </div>
+                        </CardContent>
+                      </Card>
 
-                      {/* Additional Information */}
-                      <div>
-                        <Label htmlFor="additional-info">Additional Information (Optional)</Label>
-                        <Textarea
-                          id="additional-info"
-                          placeholder="Any additional details, context, or specific requirements"
-                          value={issueDetails.additionalInfo}
-                          onChange={(e) => setIssueDetails(prev => ({ ...prev, additionalInfo: e.target.value }))}
-                          rows={3}
-                        />
-                      </div>
+                      {/* Privacy Settings - Copy-paste from submit page */}
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>{t("privacySettings")}</CardTitle>
+                          <CardDescription>{t("privacySettingsDescription")}</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id="is-public"
+                              checked={issueDetails.isPublic}
+                              onCheckedChange={(checked) => setIssueDetails(prev => ({ ...prev, isPublic: !!checked }))}
+                            />
+                            <Label htmlFor="is-public">
+                              {t("isPublic")} - {t("isPublicDescription")}
+                            </Label>
+                          </div>
+                        </CardContent>
+                      </Card>
 
                       {/* Submit Button */}
                       <div className="flex gap-3 pt-4">
                         <Button
                           type="submit"
-                          disabled={isAddingComment || !issueDetails.title.trim() || !issueDetails.description.trim() || !issueDetails.departmentId || !issueDetails.issueType}
-                          className="bg-amber-600 hover:bg-amber-700 flex-1"
+                          disabled={!issueDetails.title.trim() || !issueDetails.description.trim() || !issueDetails.departmentId || !issueDetails.issueType}
+                          className="bg-amber-600 hover:bg-amber-700 w-full"
                         >
-                          {isAddingComment ? t("loading") : "Complete Issue Submission"}
+                          {t("completeIssueSubmission")}
                         </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => setShowCompleteForm(false)}
-                          className="flex-1"
-                        >
-                          {t("cancel")}
-                        </Button>
+
                       </div>
                     </form>
                   </CardContent>
                 </Card>
               )}
 
-              {/* Add More Information - Only show for complete issues */}
-              {issue.title && issue.description && issue.issueType && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Plus className="h-5 w-5" />
-                      {t("addMoreInfo")}
-                    </CardTitle>
-                    <CardDescription>
-                      Provide additional details, photos, or documents related to your issue
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {!showAddInfo ? (
-                      <Button 
-                        onClick={() => setShowAddInfo(true)} 
-                        variant="outline"
-                        className="bg-transparent"
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Additional Information
-                      </Button>
-                    ) : (
-                      <div className="space-y-4">
-                        <div>
-                          <Label htmlFor="additional-info">Additional Information</Label>
-                          <Textarea
-                            id="additional-info"
-                            placeholder={t("placeholders.additionalInfo")}
-                            value={additionalInfo.description}
-                            onChange={(e) => setAdditionalInfo((prev) => ({ ...prev, description: e.target.value }))}
-                            rows={4}
-                          />
-                        </div>
 
-                        <div>
-                          <Label>Additional Attachments</Label>
-                          <input
-                            type="file"
-                            multiple
-                            onChange={(e) => {
-                              if (e.target.files) {
-                                setAdditionalInfo((prev) => ({
-                                  ...prev,
-                                  attachments: [...prev.attachments, ...Array.from(e.target.files!)],
-                                }))
-                              }
-                            }}
-                            className="mt-2 block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
-                          />
-                        </div>
-
-                        <div className="flex gap-2">
-                          <Button
-                            onClick={handleAddMoreInfo}
-                            disabled={!additionalInfo.description.trim() || isAddingComment}
-                          >
-                            {isAddingComment ? t("loading") : "Submit Additional Info"}
-                          </Button>
-                          <Button variant="outline" onClick={() => setShowAddInfo(false)} className="bg-transparent">
-                            {t("cancel")}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
             </div>
           )}
         </div>

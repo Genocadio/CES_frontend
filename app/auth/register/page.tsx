@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { LanguageSwitcher } from "@/components/language-switcher"
 import { useLanguage } from "@/hooks/use-language"
-import { useAuth } from "@/hooks/use-auth"
+import { useAuth } from "@/lib/hooks/use-auth"
 import { ArrowLeft, UserPlus, Eye, EyeOff } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
@@ -33,20 +33,20 @@ export default function RegisterPage() {
     setError("")
 
     if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match")
+      setError(t("passwordsDontMatch"))
       return
     }
 
     if (formData.password.length < 6) {
-      setError("Password must be at least 6 characters long")
+      setError(t("passwordTooShort"))
       return
     }
 
-    const success = await register(formData.name, formData.email, formData.password, formData.phone)
+    const success = await register(formData.name, formData.phone, formData.password, formData.email)
     if (success) {
       router.push("/dashboard")
     } else {
-      setError("An account with this email already exists")
+      setError(t("accountExists"))
     }
   }
 
@@ -72,8 +72,8 @@ export default function RegisterPage() {
               <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
                 <UserPlus className="h-8 w-8 text-primary" />
               </div>
-              <CardTitle className="text-2xl">Create Account</CardTitle>
-              <CardDescription>Join our community to submit issues and track their progress</CardDescription>
+              <CardTitle className="text-2xl">{t("createAccount")}</CardTitle>
+              <CardDescription>{t("joinCommunity")}</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -83,45 +83,43 @@ export default function RegisterPage() {
                     id="name"
                     value={formData.name}
                     onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-                    placeholder="Your full name"
+                    placeholder={t("placeholders.fullName")}
                     required
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="email">{t("email")} *</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
-                    placeholder="your@email.com"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="phone">
-                    {t("phoneNumber")} ({t("optional")})
-                  </Label>
+                  <Label htmlFor="phone">{t("phoneRequired")}</Label>
                   <Input
                     id="phone"
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => setFormData((prev) => ({ ...prev, phone: e.target.value }))}
-                    placeholder="+250 xxx xxx xxx"
+                    placeholder={t("placeholders.phoneNumber")}
+                    required
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="password">Password *</Label>
+                  <Label htmlFor="email">{t("emailOptional")}</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
+                    placeholder={t("placeholders.email")}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="password">{t("password")} *</Label>
                   <div className="relative">
                     <Input
                       id="password"
                       type={showPassword ? "text" : "password"}
                       value={formData.password}
                       onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
-                      placeholder="Create a strong password"
+                      placeholder={t("createPassword")}
                       required
                     />
                     <Button
@@ -137,13 +135,13 @@ export default function RegisterPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="confirmPassword">Confirm Password *</Label>
+                  <Label htmlFor="confirmPassword">{t("confirmPassword")} *</Label>
                   <Input
                     id="confirmPassword"
                     type="password"
                     value={formData.confirmPassword}
                     onChange={(e) => setFormData((prev) => ({ ...prev, confirmPassword: e.target.value }))}
-                    placeholder="Confirm your password"
+                    placeholder={t("confirmYourPassword")}
                     required
                   />
                 </div>
@@ -151,15 +149,15 @@ export default function RegisterPage() {
                 {error && <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">{error}</div>}
 
                 <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Creating Account..." : "Create Account"}
+                  {isLoading ? t("creatingAccount") : t("createAccount")}
                 </Button>
               </form>
 
               <div className="mt-6 text-center">
                 <p className="text-sm text-muted-foreground">
-                  Already have an account?{" "}
+                  {t("alreadyHaveAccount")}{" "}
                   <Link href="/auth/login" className="text-primary hover:underline">
-                    Sign in here
+                    {t("signInHere")}
                   </Link>
                 </p>
               </div>

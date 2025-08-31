@@ -1,8 +1,7 @@
 "use client"
 
-import { Check, ChevronsUpDown, Search } from "lucide-react"
+import { Check, ChevronsUpDown } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useState, useEffect, useRef, useCallback } from "react"
 
@@ -11,7 +10,6 @@ interface ComboboxProps {
   value?: string
   onValueChange: (value: string) => void
   placeholder?: string
-  searchPlaceholder?: string
   emptyText?: string
   typeSomethingText?: string
   disabled?: boolean
@@ -25,7 +23,6 @@ export function Combobox({
   value,
   onValueChange,
   placeholder = "Select option...",
-  searchPlaceholder = "Search...",
   emptyText = "No results found.",
   typeSomethingText = "Type something to search...",
   disabled = false,

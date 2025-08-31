@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 
 import { useLanguage } from "@/hooks/use-language"
-import { useAuth } from "@/hooks/use-auth"
+import { useAuth } from "@/lib/hooks/use-auth"
 import { MessageSquare, Search, Plus, Megaphone, FileText } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
@@ -25,7 +25,7 @@ export default function HomePage() {
         {/* Welcome Section */}
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold text-foreground mb-4 text-balance">
-            {user ? `Welcome back, ${user.name}!` : t("welcomeTitle")}
+            {user ? `Welcome back, ${user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName || user.phoneNumber}!` : t("welcomeTitle")}
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto text-pretty">{t("welcomeSubtitle")}</p>
         </div>
@@ -43,7 +43,7 @@ export default function HomePage() {
                   <Link href="/dashboard">
                     <Button variant="outline" size="sm" className="bg-transparent">
                       <FileText className="h-4 w-4 mr-2" />
-                      My Issues
+                      Dashboard
                     </Button>
                   </Link>
                   <Link href="/dashboard/settings">
@@ -142,35 +142,22 @@ export default function HomePage() {
         </div>
 
         {/* Stats Section */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="text-center p-4 bg-card rounded-lg border">
-            <div className="text-2xl font-bold text-primary">1,247</div>
-            <div className="text-sm text-muted-foreground">Issues Submitted</div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="text-center p-6 bg-card rounded-lg border hover:shadow-lg transition-shadow">
+            <div className="text-3xl font-bold text-primary mb-2">{t("fastResponses")}</div>
+            <div className="text-sm text-muted-foreground">{t("fastResponsesDescription")}</div>
           </div>
-          <div className="text-center p-4 bg-card rounded-lg border">
-            <div className="text-2xl font-bold text-green-600">892</div>
-            <div className="text-sm text-muted-foreground">Issues Resolved</div>
+          <div className="text-center p-6 bg-card rounded-lg border hover:shadow-lg transition-shadow">
+            <div className="text-3xl font-bold text-green-600 mb-2">{t("inclusiveOpinions")}</div>
+            <div className="text-sm text-muted-foreground">{t("inclusiveOpinionsDescription")}</div>
           </div>
-          <div className="text-center p-4 bg-card rounded-lg border">
-            <div className="text-2xl font-bold text-yellow-600">234</div>
-            <div className="text-sm text-muted-foreground">In Progress</div>
-          </div>
-          <div className="text-center p-4 bg-card rounded-lg border">
-            <div className="text-2xl font-bold text-blue-600">121</div>
-            <div className="text-sm text-muted-foreground">Pending Review</div>
+          <div className="text-center p-6 bg-card rounded-lg border hover:shadow-lg transition-shadow">
+            <div className="text-3xl font-bold text-blue-600 mb-2">{t("secureData")}</div>
+            <div className="text-sm text-muted-foreground">{t("secureDataDescription")}</div>
           </div>
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t bg-card mt-16">
-        <div className="container mx-auto px-4 py-8">
-          <div className="text-center text-muted-foreground">
-            <p>© 2024 Republic of Rwanda - Citizen Issue Platform</p>
-            <p className="text-sm mt-2">Helping build a better community together</p>
-          </div>
-        </div>
-      </footer>
     </div>
   )
 }

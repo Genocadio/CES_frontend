@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 
 export interface AttachmentResponseDto {
   id: number
@@ -37,9 +37,23 @@ export interface CommentResponseDto {
 
 export interface ResponseResponseDto {
   id: number
-  text: string
-  author: UserResponseDto
+  postType: string
+  postId: number
+  responder: UserResponseDto
+  message: string
+  language: string
+  isPublic: boolean
   createdAt: string
+  status: string
+  attachments: AttachmentResponseDto[]
+  comments: CommentResponseDto[]
+  children?: ResponseResponseDto[]
+  parent?: ResponseResponseDto
+  upvoteCount: number
+  downvoteCount: number
+  hasUpvoted: boolean
+  hasDownvoted: boolean
+  averageRating: number
 }
 
 export interface LocationResponseDto {
@@ -83,6 +97,7 @@ interface UseFetchIssueReturn {
   error: string | null
   fetchIssue: (ticketId: string) => Promise<void>
   resetError: () => void
+  resetIssue: () => void
 }
 
 export function useFetchIssue(): UseFetchIssueReturn {
@@ -90,7 +105,16 @@ export function useFetchIssue(): UseFetchIssueReturn {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchIssue = async (ticketId: string) => {
+  const resetError = useCallback(() => {
+    setError(null)
+  }, [])
+
+  const resetIssue = useCallback(() => {
+    setIssue(null)
+    setError(null)
+  }, [])
+
+  const fetchIssue = useCallback(async (ticketId: string) => {
     if (!ticketId.trim()) return
 
     setIsLoading(true)
@@ -118,15 +142,14 @@ export function useFetchIssue(): UseFetchIssueReturn {
     } finally {
       setIsLoading(false)
     }
-  }
-
-  const resetError = () => setError(null)
+  }, [])
 
   return {
     issue,
     isLoading,
     error,
     fetchIssue,
-    resetError
+    resetError,
+    resetIssue
   }
 }

@@ -6,18 +6,34 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { LanguageSwitcher } from "@/components/language-switcher"
-import { UserMenu } from "@/components/user-menu"
 import { useLanguage } from "@/hooks/use-language"
-import { useAuth } from "@/hooks/use-auth"
-import { ArrowLeft, Settings, Save, User, Bell, Globe } from "lucide-react"
+import { useAuth } from "@/lib/hooks/use-auth"
+import { useProfileCompletion } from "@/lib/hooks/use-profile-completion"
+import { useCloudinaryUpload } from "@/lib/hooks/use-cloudinary-upload"
+import { SharedHeader } from "@/app/components/shared-header"
+import { ArrowLeft, Settings, Save, User, Bell, Globe, MapPin, Upload, Camera } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
+import Image from "next/image"
 
 export default function SettingsPage() {
   const { t, language, setLanguage } = useLanguage()
   const { user, isLoading, updateProfile } = useAuth()
+  const { completeProfile, isLoading: completingProfile, error: profileError, resetError } = useProfileCompletion()
+  
+  // Cloudinary upload configuration for profile photos
+  const cloudinaryConfig = {
+    cloudName: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || 'demo',
+    uploadPreset: process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || 'ml_default',
+    folder: 'profile-photos',
+    maxFileSize: 5 * 1024 * 1024, // 5MB
+    allowedFormats: ['jpg', 'jpeg', 'png', 'gif'],
+    maxFiles: 1
+  }
+  
+  const { uploadFile, isUploading: uploadingPhoto, progress: uploadProgress } = useCloudinaryUpload(cloudinaryConfig)
+  
   const router = useRouter()
   const [formData, setFormData] = useState({
     name: "",
@@ -27,6 +43,15 @@ export default function SettingsPage() {
     notifications: true,
     publicProfile: false,
   })
+  const [profileCompletionData, setProfileCompletionData] = useState({
+    profileUrl: "",
+    location: {
+      district: "",
+      sector: "",
+      cell: "",
+      village: "",
+    }
+  })
   const [isSaving, setIsSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState("")
 
@@ -35,13 +60,32 @@ export default function SettingsPage() {
       router.push("/auth/login")
     } else if (user) {
       setFormData({
-        name: user.name,
-        email: user.email,
-        phone: user.phone || "",
-        language: user.preferences.language,
-        notifications: user.preferences.notifications,
-        publicProfile: user.preferences.publicProfile,
+        name: `${user.firstName} ${user.lastName}`.trim(),
+        email: user.email || "",
+        phone: user.phoneNumber || "",
+        language: user.preferences?.language || "rw",
+        notifications: user.preferences?.notifications || true,
+        publicProfile: user.preferences?.publicProfile || false,
       })
+      
+      if (user.location) {
+        setProfileCompletionData(prev => ({
+          ...prev,
+          location: {
+            district: user.location?.district || "",
+            sector: user.location?.sector || "",
+            cell: user.location?.cell || "",
+            village: user.location?.village || "",
+          }
+        }))
+      }
+      
+      if (user.profileUrl) {
+        setProfileCompletionData(prev => ({
+          ...prev,
+          profileUrl: user.profileUrl || ""
+        }))
+      }
     }
   }, [user, isLoading, router])
 
@@ -53,8 +97,9 @@ export default function SettingsPage() {
 
     const success = await updateProfile({
       ...user,
-      name: formData.name,
-      phone: formData.phone,
+      firstName: formData.name.split(" ")[0] || "",
+      lastName: formData.name.split(" ").slice(1).join(" ") || "",
+      phoneNumber: formData.phone,
       preferences: {
         language: formData.language,
         notifications: formData.notifications,
@@ -67,21 +112,63 @@ export default function SettingsPage() {
       if (formData.language !== language) {
         setLanguage(formData.language as "rw" | "en" | "fr")
       }
-      setSaveMessage("Settings saved successfully!")
+      setSaveMessage(t("settingsSaved"))
     } else {
-      setSaveMessage("Failed to save settings. Please try again.")
+      setSaveMessage(t("settingsSaveFailed"))
     }
 
     setIsSaving(false)
     setTimeout(() => setSaveMessage(""), 3000)
   }
 
+  const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const result = await uploadFile(file)
+    if (result.success && result.data) {
+      setProfileCompletionData(prev => ({
+        ...prev,
+        profileUrl: result.data!.url
+      }))
+      setSaveMessage(t("photoUploadSuccess"))
+      setTimeout(() => setSaveMessage(""), 3000)
+    } else {
+      setSaveMessage(result.error || t("photoUploadFailed"))
+      setTimeout(() => setSaveMessage(""), 3000)
+    }
+  }
+
+  const handleCompleteProfile = async () => {
+    if (!user) return
+
+    resetError()
+    
+    const success = await completeProfile(user.id, {
+      profileUrl: profileCompletionData.profileUrl,
+      level: "", // Leave level empty as requested
+      location: profileCompletionData.location
+    })
+
+    if (success) {
+      setSaveMessage(t("settingsSaved"))
+      // Refresh user data or update local state
+      setTimeout(() => setSaveMessage(""), 3000)
+    }
+  }
+
+  // Check if user has complete location information
+  const hasCompleteLocation = user?.location?.district && 
+                             user?.location?.sector && 
+                             user?.location?.cell && 
+                             user?.location?.village
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading...</p>
+          <p className="text-muted-foreground">{t("loading")}</p>
         </div>
       </div>
     )
@@ -94,29 +181,24 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/dashboard" className="flex items-center gap-2 text-foreground hover:text-primary">
-              <ArrowLeft className="h-4 w-4" />
-              Back to Dashboard
-            </Link>
-            <div className="flex items-center gap-4">
-              <LanguageSwitcher />
-              <UserMenu />
-            </div>
-          </div>
-        </div>
-      </header>
+      <SharedHeader showHomeButton={false} />
+      
+      {/* Back to Dashboard Button */}
+      <div className="container mx-auto px-4 py-4">
+        <Link href="/dashboard" className="flex items-center gap-2 text-foreground hover:text-primary w-fit">
+          <ArrowLeft className="h-4 w-4" />
+          {t("backToDashboard")}
+        </Link>
+      </div>
 
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-foreground mb-2 flex items-center gap-2">
               <Settings className="h-8 w-8" />
-              Account Settings
+              {t("accountSettings")}
             </h1>
-            <p className="text-muted-foreground">Manage your account preferences and personal information</p>
+            <p className="text-muted-foreground">{t("manageAccountDescription")}</p>
           </div>
 
           <div className="space-y-6">
@@ -125,25 +207,26 @@ export default function SettingsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <User className="h-5 w-5" />
-                  Profile Information
+                  {t("profileInformation")}
                 </CardTitle>
-                <CardDescription>Update your personal details</CardDescription>
+                <CardDescription>{t("profileDescription")}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label htmlFor="name">{t("fullName")} *</Label>
+                  <Label htmlFor="name">{t("fullName")}</Label>
                   <Input
                     id="name"
                     value={formData.name}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-                    placeholder="Your full name"
+                    disabled
+                    className="bg-muted"
                   />
+                  <p className="text-xs text-muted-foreground mt-1">{t("nameCannotBeChanged")}</p>
                 </div>
 
                 <div>
-                  <Label htmlFor="email">{t("email")} *</Label>
+                  <Label htmlFor="email">{t("email")}</Label>
                   <Input id="email" value={formData.email} disabled className="bg-muted" />
-                  <p className="text-xs text-muted-foreground mt-1">Email cannot be changed</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t("emailCannotBeChanged")}</p>
                 </div>
 
                 <div>
@@ -152,10 +235,152 @@ export default function SettingsPage() {
                     id="phone"
                     type="tel"
                     value={formData.phone}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, phone: e.target.value }))}
-                    placeholder="+250 xxx xxx xxx"
+                    disabled
+                    className="bg-muted"
                   />
+                  <p className="text-xs text-muted-foreground mt-1">{t("phoneCannotBeChanged")}</p>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Profile Completion */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5" />
+                  {t("profileCompletion")}
+                </CardTitle>
+                <CardDescription>{t("profileCompletionDescription")}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="profilePhoto">{t("profilePhoto")}</Label>
+                  <div className="flex items-center gap-4">
+                    {profileCompletionData.profileUrl ? (
+                      <div className="relative">
+                        <Image 
+                          src={profileCompletionData.profileUrl} 
+                          alt="Profile" 
+                          width={80}
+                          height={80}
+                          className="w-20 h-20 rounded-full object-cover border-2 border-gray-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setProfileCompletionData(prev => ({ ...prev, profileUrl: "" }))}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-full flex items-center justify-center bg-gray-50">
+                        <Camera className="h-8 w-8 text-gray-400" />
+                      </div>
+                    )}
+                    
+                    <div className="flex-1">
+                      <input
+                        id="profilePhoto"
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePhotoUpload}
+                        className="hidden"
+                      />
+                      <label
+                        htmlFor="profilePhoto"
+                        className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50"
+                      >
+                        <Camera className="h-4 w-4" />
+                        {uploadingPhoto ? t("uploading") : t("uploadPhoto")}
+                      </label>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {t("photoFormatInfo")}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {uploadingPhoto && (
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-primary h-2 rounded-full transition-all duration-300" 
+                        style={{ width: `${uploadProgress}%` }}
+                      ></div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="district">{t("district")}</Label>
+                    <Input
+                      id="district"
+                      value={profileCompletionData.location.district}
+                      onChange={(e) => setProfileCompletionData(prev => ({ 
+                        ...prev, 
+                        location: { ...prev.location, district: e.target.value }
+                      }))}
+                      placeholder={t("district")}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="sector">{t("sector")}</Label>
+                    <Input
+                      id="sector"
+                      value={profileCompletionData.location.sector}
+                      onChange={(e) => setProfileCompletionData(prev => ({ 
+                        ...prev, 
+                        location: { ...prev.location, sector: e.target.value }
+                      }))}
+                      placeholder={t("sector")}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="cell">{t("cell")}</Label>
+                    <Input
+                      id="cell"
+                      value={profileCompletionData.location.cell}
+                      onChange={(e) => setProfileCompletionData(prev => ({ 
+                        ...prev, 
+                        location: { ...prev.location, cell: e.target.value }
+                      }))}
+                      placeholder={t("cell")}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="village">{t("village")}</Label>
+                    <Input
+                      id="village"
+                      value={profileCompletionData.location.village}
+                      onChange={(e) => setProfileCompletionData(prev => ({ 
+                        ...prev, 
+                        location: { ...prev.location, village: e.target.value }
+                      }))}
+                      placeholder={t("village")}
+                    />
+                  </div>
+                </div>
+
+                {!hasCompleteLocation && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <p className="text-yellow-800 text-sm">
+                      {t("completeLocationMessage")}
+                    </p>
+                  </div>
+                )}
+
+                <Button 
+                  onClick={handleCompleteProfile} 
+                  disabled={completingProfile}
+                  className="flex items-center gap-2"
+                >
+                  <Upload className="h-4 w-4" />
+                  {completingProfile ? t("updatingProfile") : t("updateProfile")}
+                </Button>
+
+                {profileError && (
+                  <p className="text-sm text-destructive">{profileError}</p>
+                )}
               </CardContent>
             </Card>
 
@@ -164,13 +389,13 @@ export default function SettingsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Globe className="h-5 w-5" />
-                  Language & Preferences
+                  {t("languagePreferences")}
                 </CardTitle>
-                <CardDescription>Customize your experience</CardDescription>
+                <CardDescription>{t("customizeExperience")}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label>Preferred Language</Label>
+                  <Label>{t("preferredLanguage")}</Label>
                   <Select
                     value={formData.language}
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, language: value }))}
@@ -179,9 +404,9 @@ export default function SettingsPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="rw">Kinyarwanda</SelectItem>
-                      <SelectItem value="en">English</SelectItem>
-                      <SelectItem value="fr">Français</SelectItem>
+                      <SelectItem value="rw">{t("kinyarwanda")}</SelectItem>
+                      <SelectItem value="en">{t("english")}</SelectItem>
+                      <SelectItem value="fr">{t("french")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -192,10 +417,10 @@ export default function SettingsPage() {
                     checked={formData.publicProfile}
                     onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, publicProfile: !!checked }))}
                   />
-                  <Label htmlFor="public-profile">Make my profile public</Label>
+                  <Label htmlFor="public-profile">{t("makeProfilePublic")}</Label>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  When enabled, your name will be visible on issues and comments you submit
+                  {t("publicProfileDescription")}
                 </p>
               </CardContent>
             </Card>
@@ -205,9 +430,9 @@ export default function SettingsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Bell className="h-5 w-5" />
-                  Notifications
+                  {t("notifications")}
                 </CardTitle>
-                <CardDescription>Choose what updates you want to receive</CardDescription>
+                <CardDescription>{t("chooseUpdates")}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center space-x-2">
@@ -216,10 +441,10 @@ export default function SettingsPage() {
                     checked={formData.notifications}
                     onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, notifications: !!checked }))}
                   />
-                  <Label htmlFor="notifications">Email notifications</Label>
+                  <Label htmlFor="notifications">{t("emailNotifications")}</Label>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Receive updates about your issues and community discussions
+                  {t("notificationsDescription")}
                 </p>
               </CardContent>
             </Card>
@@ -228,7 +453,7 @@ export default function SettingsPage() {
             <div className="flex items-center gap-4">
               <Button onClick={handleSave} disabled={isSaving} className="flex items-center gap-2">
                 <Save className="h-4 w-4" />
-                {isSaving ? "Saving..." : "Save Changes"}
+                {isSaving ? t("saving") : t("saveChanges")}
               </Button>
               {saveMessage && (
                 <p className={`text-sm ${saveMessage.includes("success") ? "text-green-600" : "text-destructive"}`}>

@@ -71,7 +71,7 @@ export default function SubmitIssuePage() {
   const { createIssue, isCreating, error: createError, resetError } = useCreateIssue()
 
   // Initialize departments hook
-  const { departments, searchDepartments, isLoading, error: departmentsError, resetError: resetDepartmentsError } = useDepartments()
+  const { departments, searchDepartments, isLoading } = useDepartments()
 
 
 
@@ -362,7 +362,6 @@ export default function SubmitIssuePage() {
                         value={form.departmentId}
                         onValueChange={(value) => setForm((prev) => ({ ...prev, departmentId: value }))}
                         placeholder={t("placeholders.category")}
-                        searchPlaceholder={t("searchDepartments")}
                         emptyText={t("noDepartmentsFound")}
                         typeSomethingText={t("typeSomethingToSearch")}
                         onSearch={searchDepartments}
