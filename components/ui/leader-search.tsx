@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Search, User, X } from 'lucide-react'
-import { useSearchLeaders, LeaderSearchResponseDto } from '@/lib/hooks/use-search-leaders'
+import { useSearchLeaders, LeaderSearchResponseDto, DepartmentResponseDto } from '@/lib/hooks/use-search-leaders'
 import { useLanguage } from '@/hooks/use-language'
 
 interface LeaderSearchProps {
@@ -20,12 +20,29 @@ export function LeaderSearch({
   placeholder,
   value
 }: LeaderSearchProps) {
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const [searchTerm, setSearchTerm] = useState(value || '')
   const [isOpen, setIsOpen] = useState(false)
   const { leaders, isLoading, searchLeaders, clearLeaders } = useSearchLeaders()
   const searchRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Helper function to get localized department name
+  const getLocalizedDepartmentName = (department: DepartmentResponseDto | null | undefined) => {
+    if (!department) {
+      return t("noDepartment")
+    }
+    
+    switch (language) {
+      case 'rw':
+        return department.nameRw || department.nameEn || t("noDepartment")
+      case 'fr':
+        return department.nameFr || department.nameEn || t("noDepartment")
+      case 'en':
+      default:
+        return department.nameEn || t("noDepartment")
+    }
+  }
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -134,7 +151,7 @@ export function LeaderSearch({
             <div className="flex-1">
               <p className="text-sm font-semibold text-primary">{selectedLeader.fullName}</p>
               <p className="text-xs text-muted-foreground">
-                {selectedLeader.leadershipPlaceName} • {selectedLeader.departmentName}
+                {selectedLeader.leadershipPlaceName} • {getLocalizedDepartmentName(selectedLeader.department)}
               </p>
             </div>
           </div>
@@ -165,7 +182,7 @@ export function LeaderSearch({
                     <div className="flex-1">
                       <p className="text-sm font-medium">{leader.fullName}</p>
                       <p className="text-xs text-muted-foreground">
-                        {leader.leadershipPlaceName} • {leader.departmentName}
+                        {leader.leadershipPlaceName} • {getLocalizedDepartmentName(leader.department)}
                       </p>
                     </div>
                   </div>

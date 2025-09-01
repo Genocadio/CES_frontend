@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { SharedHeader } from "../components/shared-header"
 import { useLanguage } from "@/hooks/use-language"
-import { Search, MessageSquare, Clock, CheckCircle, XCircle, FileText, Plus, X, Upload, Phone } from "lucide-react"
+import { Search, MessageSquare, Clock, CheckCircle, XCircle, FileText, Plus, X, Upload, Phone, User } from "lucide-react"
 import Link from "next/link"
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useSearchParams } from "next/navigation"
@@ -19,6 +19,8 @@ import { useUpdateIssue } from "@/lib/hooks/use-update-issue"
 import { useDepartments } from "@/lib/hooks/use-departments"
 import { AttachmentType } from "@/lib/hooks/use-cloudinary-upload"
 import { Combobox } from "@/components/ui/combobox"
+import { LeaderSearch } from "@/components/ui/leader-search"
+import { LeaderSearchResponseDto } from "@/lib/hooks/use-search-leaders"
 
 export default function FollowupPage() {
   const { t, language } = useLanguage()
@@ -35,6 +37,8 @@ export default function FollowupPage() {
     isPublic: true,
     attachments: [] as File[],
     additionalInfo: "",
+    assignedToId: null as number | null,
+    assignedLeader: null as LeaderSearchResponseDto | null,
   })
 
   // Use the new hook to fetch issues
@@ -161,12 +165,13 @@ export default function FollowupPage() {
         issueType: issueDetails.issueType,
         departmentId: parseInt(issueDetails.departmentId),
         isPrivate: !issueDetails.isPublic,
+        assignedToId: issueDetails.assignedToId || undefined,
         attachments: issueDetails.attachments.map(file => ({
           url: URL.createObjectURL(file),
           type: file.type.startsWith('image/') ? AttachmentType.PHOTO : 
                 file.type.startsWith('video/') ? AttachmentType.VIDEO : 
                 file.type.startsWith('audio/') ? AttachmentType.AUDIO : 
-                file.type === 'application/pdf' ? AttachmentType.PDF : AttachmentType.DOCUMENT,
+                file.type === 'application/pdf' ? AttachmentType.PHOTO : AttachmentType.DOCUMENT,
           description: file.name
         }))
       })
@@ -183,7 +188,9 @@ export default function FollowupPage() {
           issueType: "", 
           isPublic: true, 
           attachments: [], 
-          additionalInfo: "" 
+          additionalInfo: "",
+          assignedToId: null,
+          assignedLeader: null
         })
         setShowCompleteForm(false)
         
@@ -389,6 +396,20 @@ export default function FollowupPage() {
                           </div>
                         </div>
                       )}
+
+                      {localIssue.assignedTo && (
+                        <div>
+                          <Label className="text-sm font-medium text-muted-foreground">{t("assignedTo")}</Label>
+                          <div className="mt-2 p-2 bg-muted rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <User className="h-4 w-4 text-primary" />
+                              <span className="text-sm font-medium">
+                                {localIssue.assignedTo.firstName} {localIssue.assignedTo.lastName}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -554,62 +575,84 @@ export default function FollowupPage() {
                             </div>
                           </div>
 
-                          <div>
-                            <Label>{t("attachments")}</Label>
-                            <div className="mt-2">
-                              <input
-                                type="file"
-                                multiple
-                                onChange={(e) => {
-                                  if (e.target.files) {
-                                    setIssueDetails(prev => ({
-                                      ...prev,
-                                      attachments: [...prev.attachments, ...Array.from(e.target.files!)]
-                                    }))
-                                  }
-                                }}
-                                className="hidden"
-                                id="file-upload"
-                                accept="image/*,.pdf,.doc,.docx"
-                              />
-                              <label
-                                htmlFor="file-upload"
-                                className="flex items-center gap-2 p-4 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary transition-colors"
-                              >
-                                <Upload className="h-5 w-5 text-muted-foreground" />
-                                <span className="text-muted-foreground">{t("attachFiles")}</span>
-                              </label>
-                              {issueDetails.attachments.length > 0 && (
-                                <div className="mt-2 space-y-2">
-                                  {issueDetails.attachments.map((file, index) => (
-                                    <div key={index} className="flex items-center justify-between p-2 bg-muted rounded-lg">
-                                      <div className="flex items-center gap-2">
-                                        <CheckCircle className="h-4 w-4 text-green-600" />
-                                        <span className="text-sm text-muted-foreground">
-                                          {file.name}
-                                        </span>
-                                        <span className="text-xs text-muted-foreground">
-                                          ({(file.size / 1024 / 1024).toFixed(2)} MB)
-                                        </span>
+                          <div className="grid md:grid-cols-2 gap-4">
+                            <div>
+                              <Label>{t("attachments")}</Label>
+                              <div className="mt-2">
+                                <input
+                                  type="file"
+                                  multiple
+                                  onChange={(e) => {
+                                    if (e.target.files) {
+                                      setIssueDetails(prev => ({
+                                        ...prev,
+                                        attachments: [...prev.attachments, ...Array.from(e.target.files!)]
+                                      }))
+                                    }
+                                  }}
+                                  className="hidden"
+                                  id="file-upload"
+                                  accept="image/*,.pdf,.doc,.docx"
+                                />
+                                <label
+                                  htmlFor="file-upload"
+                                  className="flex items-center gap-2 p-3 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary transition-colors"
+                                >
+                                  <Upload className="h-4 w-4 text-muted-foreground" />
+                                  <span className="text-sm text-muted-foreground">{t("attachFiles")}</span>
+                                </label>
+                                {issueDetails.attachments.length > 0 && (
+                                  <div className="mt-2 space-y-2">
+                                    {issueDetails.attachments.map((file, index) => (
+                                      <div key={index} className="flex items-center justify-between p-2 bg-muted rounded-lg">
+                                        <div className="flex items-center gap-2">
+                                          <CheckCircle className="h-4 w-4 text-green-600" />
+                                          <span className="text-sm text-muted-foreground">
+                                            {file.name}
+                                          </span>
+                                          <span className="text-xs text-muted-foreground">
+                                            ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                                          </span>
+                                        </div>
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => {
+                                            setIssueDetails(prev => ({
+                                              ...prev,
+                                              attachments: prev.attachments.filter((_, i) => i !== index)
+                                            }))
+                                          }}
+                                          className="h-6 w-6 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                                        >
+                                          <X className="h-3 w-3" />
+                                        </Button>
                                       </div>
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => {
-                                          setIssueDetails(prev => ({
-                                            ...prev,
-                                            attachments: prev.attachments.filter((_, i) => i !== index)
-                                          }))
-                                        }}
-                                        className="h-6 w-6 p-0 hover:bg-destructive hover:text-destructive-foreground"
-                                      >
-                                        <X className="h-3 w-3" />
-                                      </Button>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            <div>
+                              <Label>{t("assignReader")}</Label>
+                              <div className="mt-2">
+                                <LeaderSearch
+                                  onLeaderSelect={(leader) => setIssueDetails(prev => ({ 
+                                    ...prev, 
+                                    assignedToId: leader.userId,
+                                    assignedLeader: leader
+                                  }))}
+                                  selectedLeader={issueDetails.assignedLeader}
+                                  onClearSelection={() => setIssueDetails(prev => ({ 
+                                    ...prev, 
+                                    assignedToId: null,
+                                    assignedLeader: null
+                                  }))}
+                                  placeholder={t("searchLeaderByName")}
+                                />
+                              </div>
                             </div>
                           </div>
                         </CardContent>

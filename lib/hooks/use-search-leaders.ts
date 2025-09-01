@@ -1,5 +1,18 @@
 import { useState, useCallback } from 'react'
 
+export interface DepartmentResponseDto {
+  id: number
+  nameEn: string
+  nameRw: string
+  nameFr: string
+  description: string
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+  createdBy: string
+  updatedBy: string
+}
+
 export interface LeaderSearchResponseDto {
   userId: number
   firstName: string
@@ -11,7 +24,7 @@ export interface LeaderSearchResponseDto {
   accountStatus: string
   leadershipLevel: string
   leadershipPlaceName: string
-  departmentName: string
+  department: DepartmentResponseDto | null
   fullName: string
 }
 
