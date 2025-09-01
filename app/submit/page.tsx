@@ -19,6 +19,8 @@ import { useCloudinaryUpload, AttachmentRequestDto } from "@/lib/hooks/use-cloud
 import { useCreateIssue, IssueUserDto } from "@/lib/hooks/use-create-issue"
 import { useDepartments } from "@/lib/hooks/use-departments"
 import { Combobox } from "@/components/ui/combobox"
+import { LeaderSearch } from "@/components/ui/leader-search"
+import { LeaderSearchResponseDto } from "@/lib/hooks/use-search-leaders"
 
 interface IssueForm {
   title: string
@@ -33,6 +35,8 @@ interface IssueForm {
   attachments: AttachmentRequestDto[]
   isForSomeoneElse: boolean
   otherPersonName: string
+  assignedToId: number | null
+  assignedLeader: LeaderSearchResponseDto | null
 }
 
 export default function SubmitIssuePage() {
@@ -51,6 +55,8 @@ export default function SubmitIssuePage() {
     attachments: [],
     isForSomeoneElse: false,
     otherPersonName: "",
+    assignedToId: null,
+    assignedLeader: null,
   })
 
   // Initialize Cloudinary upload hook
@@ -187,7 +193,7 @@ export default function SubmitIssuePage() {
       departmentId: form.departmentId, // Use the selected department ID
       isPrivate: !form.isPublic,
       isanonymous: form.isAnonymous, // Map form state to backend field
-      assignedToId: undefined, // Leave blank as requested
+      assignedToId: form.assignedToId || undefined, // Include assigned leader if selected
       location: undefined, // No location for now
       attachments: form.attachments,
       language: "ENGLISH" // Default language
@@ -389,66 +395,88 @@ export default function SubmitIssuePage() {
                     </div>
                   </div>
 
-                  <div>
-                    <Label>{t("attachments")}</Label>
-                    <div className="mt-2">
-                      <input
-                        type="file"
-                        multiple
-                        onChange={handleFileUpload}
-                        className="hidden"
-                        id="file-upload"
-                        accept="image/*,.pdf,.doc,.docx"
-                      />
-                      <label
-                        htmlFor="file-upload"
-                        className="flex items-center gap-2 p-4 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary transition-colors"
-                      >
-                        <Upload className="h-5 w-5 text-muted-foreground" />
-                        <span className="text-muted-foreground">{t("attachFiles")}</span>
-                      </label>
-                      {form.attachments.length > 0 && (
-                        <div className="mt-2 space-y-2">
-                          {form.attachments.map((attachment, index) => (
-                            <div key={index} className="flex items-center justify-between p-2 bg-muted rounded-lg">
-                              <div className="flex items-center gap-2">
-                                <CheckCircle className="h-4 w-4 text-green-600" />
-                                <span className="text-sm text-muted-foreground">
-                                  {attachment.description}
-                                </span>
-                                <span className="text-xs text-muted-foreground">
-                                  ({attachment.type})
-                                </span>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <Label>{t("attachments")}</Label>
+                      <div className="mt-2">
+                        <input
+                          type="file"
+                          multiple
+                          onChange={handleFileUpload}
+                          className="hidden"
+                          id="file-upload"
+                          accept="image/*,.pdf,.doc,.docx"
+                        />
+                        <label
+                          htmlFor="file-upload"
+                          className="flex items-center gap-2 p-3 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary transition-colors"
+                        >
+                          <Upload className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm text-muted-foreground">{t("attachFiles")}</span>
+                                                </label>
+                        {form.attachments.length > 0 && (
+                          <div className="mt-2 space-y-2">
+                            {form.attachments.map((attachment, index) => (
+                              <div key={index} className="flex items-center justify-between p-2 bg-muted rounded-lg">
+                                <div className="flex items-center gap-2">
+                                  <CheckCircle className="h-4 w-4 text-green-600" />
+                                  <span className="text-sm text-muted-foreground">
+                                    {attachment.description}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">
+                                    ({attachment.type})
+                                  </span>
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => removeAttachment(index)}
+                                  className="h-6 w-6 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                                >
+                                  <X className="h-3 w-3" />
+                                </Button>
                               </div>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => removeAttachment(index)}
-                                className="h-6 w-6 p-0 hover:bg-destructive hover:text-destructive-foreground"
-                              >
-                                <X className="h-3 w-3" />
-                              </Button>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {/* Upload Progress */}
+                        {isUploading && (
+                          <div className="mt-2">
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                              Uploading... {Math.round(progress)}%
                             </div>
-                          ))}
-                        </div>
-                      )}
-                      
-                      {/* Upload Progress */}
-                      {isUploading && (
-                        <div className="mt-2">
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                            Uploading... {Math.round(progress)}%
+                            <div className="w-full bg-muted rounded-full h-2 mt-1">
+                              <div 
+                                className="bg-primary h-2 rounded-full transition-all duration-300"
+                                style={{ width: `${progress}%` }}
+                              ></div>
+                            </div>
                           </div>
-                          <div className="w-full bg-muted rounded-full h-2 mt-1">
-                            <div 
-                              className="bg-primary h-2 rounded-full transition-all duration-300"
-                              style={{ width: `${progress}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                      )}
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label>{t("assignReader")}</Label>
+                      <div className="mt-2">
+                        <LeaderSearch
+                          onLeaderSelect={(leader) => setForm((prev) => ({ 
+                            ...prev, 
+                            assignedToId: leader.userId,
+                            assignedLeader: leader
+                          }))}
+                          selectedLeader={form.assignedLeader}
+                          onClearSelection={() => setForm((prev) => ({ 
+                            ...prev, 
+                            assignedToId: null,
+                            assignedLeader: null
+                          }))}
+                          placeholder={t("searchLeaderByName")}
+                        />
+                      </div>
                     </div>
                   </div>
                 </CardContent>
