@@ -9,12 +9,16 @@ import { FloatingActionButton } from "@/components/floating-action-button"
 import { SharedHeader } from "../components/shared-header"
 import { useLanguage } from "@/hooks/use-language"
 import { useFetchIssues } from "@/lib/hooks/use-fetch-issues"
+import { useAuth } from "@/lib/hooks/use-auth"
 import { Filter, MessageSquare, Eye, Loader2, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import { useState, useEffect, useCallback } from "react"
+import { useRouter } from "next/navigation"
 
 export default function PublicOpinionsPage() {
   const { t } = useLanguage()
+  const { user, isLoading: authLoading } = useAuth()
+  const router = useRouter()
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("")
@@ -29,6 +33,13 @@ export default function PublicOpinionsPage() {
     resetSearch,
     resetError
   } = useFetchIssues()
+
+  // Check authentication and redirect if not logged in
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push("/")
+    }
+  }, [user, authLoading, router])
 
   // Debounce search term to avoid too many API calls
   useEffect(() => {
@@ -130,6 +141,23 @@ export default function PublicOpinionsPage() {
     setSearchTerm("")
     setStatusFilter("all")
     resetSearch()
+  }
+
+  // Show loading while checking authentication
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">{t("loading")}</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Don't render if not authenticated
+  if (!user) {
+    return null
   }
 
   return (

@@ -1,10 +1,11 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react"
 import { useAuthApi } from "@/lib/hooks/use-auth-api"
 import { useActivityMonitor } from "@/lib/hooks/use-activity-monitor"
 import { setGlobalLogout } from "@/lib/utils/http-interceptor"
 import { UserResponseDto } from "@/lib/types/auth"
+import { useRouter } from "next/navigation"
 
 type User = UserResponseDto
 
@@ -23,6 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const { login: loginApi, register: registerApi, isLoading: apiLoading } = useAuthApi()
+  const router = useRouter()
   
   // Set up activity monitoring for automatic token refresh
   useActivityMonitor({
@@ -69,17 +71,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return false
   }
 
-  const logout = () => {
+  const logout = useCallback(() => {
     setUser(null)
     localStorage.removeItem("current-user")
     localStorage.removeItem("access-token")
     localStorage.removeItem("refresh-token")
-  }
+    router.push("/auth/login")
+  }, [router])
 
   // Set global logout function for HTTP interceptor
   useEffect(() => {
     setGlobalLogout(logout)
-  }, [])
+  }, [logout])
 
   const updateProfile = async (updates: Partial<User>): Promise<boolean> => {
     if (!user) return false

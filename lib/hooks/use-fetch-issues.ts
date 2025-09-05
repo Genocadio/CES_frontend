@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react'
 import { IssueResponseDto } from './use-fetch-issue'
+import { makeAuthenticatedRequest, handleAuthenticationError } from '@/lib/utils/authenticated-fetch'
 
 export interface SearchParams {
   query: string
@@ -69,7 +70,7 @@ export function useFetchIssues(): UseFetchIssuesReturn {
         sortDir: params.sortDir || 'desc'
       })
 
-      const response = await fetch(`${baseUrl}/issues/search?${queryParams}`)
+      const response = await makeAuthenticatedRequest(`${baseUrl}/issues/search?${queryParams}`)
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
@@ -91,6 +92,7 @@ export function useFetchIssues(): UseFetchIssuesReturn {
       setTotalElements(data.totalElements)
       setCurrentSearchParams(params)
     } catch (err) {
+      handleAuthenticationError(err as Error)
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch issues'
       setError(errorMessage)
       console.error('Search issues error:', err)

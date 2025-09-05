@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { AnnouncementResponseDto, PaginatedAnnouncementsResponse } from '../types/announcements';
 import { API_ENDPOINTS } from '../config/api';
+import { makeAuthenticatedRequest, handleAuthenticationError } from '@/lib/utils/authenticated-fetch';
 
 interface UseAnnouncementsOptions {
   page?: number;
@@ -54,7 +55,7 @@ export const useAnnouncements = (options: UseAnnouncementsOptions = {}): UseAnno
       const url = API_ENDPOINTS.ANNOUNCEMENTS.GET_ALL(pageNum, size, sortBy, sortDir);
       console.log('Fetching announcements from:', url);
       
-      const response = await fetch(url, {
+      const response = await makeAuthenticatedRequest(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -86,6 +87,7 @@ export const useAnnouncements = (options: UseAnnouncementsOptions = {}): UseAnno
         setError(errorMessage);
       }
     } catch (err) {
+      handleAuthenticationError(err as Error);
       console.error('Error fetching announcements:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch announcements');
     } finally {
@@ -97,45 +99,13 @@ export const useAnnouncements = (options: UseAnnouncementsOptions = {}): UseAnno
     try {
       console.log('Marking announcement as read:', announcementId);
       
-      // Check if user is authenticated for mark as read (this might require auth)
-      const currentUser = localStorage.getItem('current-user');
-      const authTokens = localStorage.getItem('authTokens');
-      
-      if (!currentUser && !authTokens) {
-        console.log('User not authenticated, skipping mark as read');
-        // Still update local state for demo purposes
-        setAnnouncements(prev => 
-          prev.map(announcement => 
-            announcement.id === announcementId 
-              ? { ...announcement, hasViewed: true, viewCount: announcement.viewCount + 1 }
-              : announcement
-          )
-        );
-        return;
-      }
-      
-      // Prepare headers
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-
-      // Add authorization header if we have tokens
-      if (authTokens) {
-        try {
-          const parsedTokens = JSON.parse(authTokens);
-          if (parsedTokens.accessToken) {
-            headers['Authorization'] = `Bearer ${parsedTokens.accessToken}`;
-          }
-        } catch (parseError) {
-          console.error('Error parsing auth tokens:', parseError);
-        }
-      }
-
-      const response = await fetch(
+      const response = await makeAuthenticatedRequest(
         API_ENDPOINTS.ANNOUNCEMENTS.VIEW(announcementId.toString()),
         {
           method: 'POST',
-          headers,
+          headers: {
+            'Content-Type': 'application/json',
+          },
         }
       );
 
@@ -153,6 +123,7 @@ export const useAnnouncements = (options: UseAnnouncementsOptions = {}): UseAnno
         console.error('Failed to mark announcement as read:', response.status, response.statusText);
       }
     } catch (err) {
+      handleAuthenticationError(err as Error);
       console.error('Error marking announcement as read:', err);
     }
   }, []);

@@ -8,6 +8,8 @@ export const translations = {
     viewOpinions: "Reba Ibitekerezo",
     followUp: "Gukurikirana",
     publicOpinions: "Ibitekerezo bya Abaturage",
+    topics: "Ibiganiro",
+    viewTopics: "Reba Ibiganiro",
     language: "Ururimi",
 
     // Home page
@@ -70,6 +72,19 @@ export const translations = {
     login: "Injira",
     register: "Iyandikishe",
     myIssues: "Ibibazo Byanjye",
+
+    // Topics
+    topicsDescription: "Gira ibiganiro n'abandi bantu, tanga ibitekerezo, cyangwa ubwoba ibibazo",
+    createPost: "Tanga Ubutumwa",
+    createNewPost: "Tanga Ubutumwa Mushya",
+    postTitle: "Umutwe w'Ubutumwa",
+    whatsOnYourMind: "Ni iki wifuza kuvuga?",
+    post: "Tanga",
+    reply: "Subiza",
+    writeAReply: "Andika igisubizo...",
+    noPostsYet: "Nta butumwa bwabonetse",
+    noPostsDescription: "Niba ufite ikintu cyifuza kuvuga, tanga ubutumwa bwawe bwa mbere",
+    createFirstPost: "Tanga Ubutumwa Bwa Mbere",
     myOpinions: "Ibitekerezo Byanjye",
     dashboard: "Dashboard",
     opinions: "Ibitekerezo",
@@ -314,6 +329,8 @@ export const translations = {
     submitIssue: "Submit Issue",
     followUp: "Follow Up",
     publicOpinions: "Public Opinions",
+    topics: "Topics",
+    viewTopics: "View Topics",
     language: "Language",
 
     // Home page
@@ -376,6 +393,19 @@ export const translations = {
     register: "Register",
     myIssues: "My Issues",
     myOpinions: "My Opinions",
+
+    // Topics
+    topicsDescription: "Engage in discussions with other citizens, share your thoughts, or raise concerns",
+    createPost: "Create Post",
+    createNewPost: "Create New Post",
+    postTitle: "Post Title",
+    whatsOnYourMind: "What's on your mind?",
+    post: "Post",
+    reply: "Reply",
+    writeAReply: "Write a reply...",
+    noPostsYet: "No posts yet",
+    noPostsDescription: "If you have something to share, create your first post",
+    createFirstPost: "Create First Post",
     dashboard: "Dashboard",
     opinions: "Opinions",
     settings: "Settings",
@@ -606,6 +636,8 @@ export const translations = {
     submitIssue: "Soumettre un Problème",
     followUp: "Suivi",
     publicOpinions: "Opinions Publiques",
+    topics: "Sujets",
+    viewTopics: "Voir les Sujets",
     language: "Langue",
 
     // Home page
@@ -669,6 +701,19 @@ export const translations = {
     register: "Inscription",
     myIssues: "Mes Problèmes",
     myOpinions: "Mes Opinions",
+
+    // Topics
+    topicsDescription: "Participez aux discussions avec d'autres citoyens, partagez vos pensées ou soulevez des préoccupations",
+    createPost: "Créer un Post",
+    createNewPost: "Créer un Nouveau Post",
+    postTitle: "Titre du Post",
+    whatsOnYourMind: "Qu'est-ce qui vous préoccupe?",
+    post: "Publier",
+    reply: "Répondre",
+    writeAReply: "Écrivez une réponse...",
+    noPostsYet: "Aucun post pour le moment",
+    noPostsDescription: "Si vous avez quelque chose à partager, créez votre premier post",
+    createFirstPost: "Créer le Premier Post",
     dashboard: "Tableau de Bord",
     opinions: "Opinions",
     settings: "Paramètres",

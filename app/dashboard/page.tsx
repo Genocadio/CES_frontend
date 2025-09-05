@@ -20,7 +20,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!authLoading && !user) {
-      router.push("/auth/login")
+      router.push("/")
     }
   }, [user, authLoading, router])
 
@@ -158,7 +158,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Quick Actions */}
-          <div className="grid md:grid-cols-3 gap-6 mb-8">
+          <div className="grid md:grid-cols-4 gap-6 mb-8">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -188,6 +188,22 @@ export default function DashboardPage() {
                 </Link>
               </CardContent>
             </Card>
+
+            {/* <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5 text-primary" />
+                  {t("topics")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Link href="/topics">
+                  <Button variant="outline" className="w-full bg-transparent">
+                    {t("viewTopics")}
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card> */}
 
             <Card>
               <CardHeader>

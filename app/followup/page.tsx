@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { SharedHeader } from "../components/shared-header"
 import { useLanguage } from "@/hooks/use-language"
-import { Search, MessageSquare, Clock, CheckCircle, XCircle, FileText, Plus, X, Upload, Phone, User } from "lucide-react"
+import { Search, Clock, CheckCircle, XCircle, FileText, Plus, X, Upload, Phone, User } from "lucide-react"
 import Link from "next/link"
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useSearchParams } from "next/navigation"
@@ -21,9 +21,13 @@ import { AttachmentType } from "@/lib/hooks/use-cloudinary-upload"
 import { Combobox } from "@/components/ui/combobox"
 import { LeaderSearch } from "@/components/ui/leader-search"
 import { LeaderSearchResponseDto } from "@/lib/hooks/use-search-leaders"
+import { useAuth } from "@/lib/hooks/use-auth"
+import { PostType } from "@/lib/types/comments"
+import { CommentSection } from "@/components/ui/comment-section"
 
 export default function FollowupPage() {
   const { t, language } = useLanguage()
+  const { user } = useAuth()
   const searchParams = useSearchParams()
   const [ticketId, setTicketId] = useState("")
 
@@ -41,6 +45,9 @@ export default function FollowupPage() {
     assignedLeader: null as LeaderSearchResponseDto | null,
   })
 
+  // Comment state
+  const [showComments, setShowComments] = useState(false)
+
   // Use the new hook to fetch issues
   const { isLoading, error, resetError } = useFetchIssue()
 
@@ -49,6 +56,7 @@ export default function FollowupPage() {
   
   // Initialize update issue hook
   const { updateIssue, resetError: resetUpdateError } = useUpdateIssue()
+
 
   // Ref to track if we've already fetched a specific ticket ID
   const fetchedTicketIdRef = useRef<string | null>(null)
@@ -201,6 +209,13 @@ export default function FollowupPage() {
     }
   }
 
+  // Clear comment state when user logs out
+  useEffect(() => {
+    if (!user) {
+      setShowComments(false)
+    }
+  }, [user])
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "received":
@@ -215,6 +230,7 @@ export default function FollowupPage() {
         return "bg-gray-100 text-gray-800"
     }
   }
+
 
 
 
@@ -421,58 +437,12 @@ export default function FollowupPage() {
 
               {/* Comments Section - Only show for complete issues */}
               {(localIssue.title && localIssue.description && localIssue.issueType) && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <MessageSquare className="h-5 w-5" />
-                      {t("commentsAndUpdates")}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {!localIssue.comments || localIssue.comments.length === 0 ? (
-                      <p className="text-muted-foreground text-center py-4">{t("noCommentsYet")}</p>
-                    ) : (
-                      <div className="space-y-4">
-                        {localIssue.comments.map((comment) => (
-                          <div key={comment.id} className="border-l-4 border-primary pl-4">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="font-medium text-sm">
-                                {comment.author?.firstName} {comment.author?.lastName}
-                              </span>
-                              <span className="text-xs text-muted-foreground">
-                                {comment.createdAt ? new Date(comment.createdAt).toLocaleString() : 'Date not available'}
-                              </span>
-                            </div>
-                            <p className="text-foreground">{comment.text}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                                         {/* Add Comment - Only for logged-in users */}
-                     {/* TODO: Add authentication check here */}
-                     {/* For now, hiding comment form for all users */}
-                     {/* 
-                     <div className="border-t pt-4">
-                       <Label htmlFor="new-comment">{t("addCommentOrQuestion")}</Label>
-                       <Textarea
-                         id="new-comment"
-                         placeholder={t("placeholders.comments")}
-                         value={newComment}
-                         onChange={(e) => setNewComment(e.target.value)}
-                         className="mt-2"
-                       />
-                       <Button
-                         onClick={handleAddComment}
-                         disabled={!newComment.trim() || isAddingComment}
-                         className="mt-2"
-                       >
-                         {isAddingComment ? t("loading") : t("addComment")}
-                       </Button>
-                     </div>
-                     */}
-                  </CardContent>
-                </Card>
+                <CommentSection
+                  postId={localIssue.id}
+                  postType={PostType.ISSUE}
+                  showComments={showComments}
+                  onToggleComments={() => setShowComments(!showComments)}
+                />
               )}
 
               {/* Complete Issue Form - Only show for incomplete issues */}

@@ -10,4 +10,11 @@ export const API_ENDPOINTS = {
     DELETE: (id: string) => `${API_BASE_URL}/announcements/${id}`,
     VIEW: (id: string) => `${API_BASE_URL}/announcements/${id}/view`,
   },
+  COMMENTS: {
+    GET_BY_POST: (postId: number, postType: string, page: number = 0, size: number = 20, sortBy: string = 'createdAt', sortDir: string = 'desc') =>
+      `${API_BASE_URL}/comments?postId=${postId}&postType=${postType}&page=${page}&size=${size}&sortBy=${sortBy}&sortDir=${sortDir}`,
+    CREATE: `${API_BASE_URL}/comments`,
+    UPVOTE: (commentId: string) => `${API_BASE_URL}/comments/${commentId}/upvote`,
+    DOWNVOTE: (commentId: string) => `${API_BASE_URL}/comments/${commentId}/downvote`,
+  },
 } as const;

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { authenticatedFetch } from '@/lib/utils/http-interceptor'
+import { makeAuthenticatedRequest, handleAuthenticationError } from '@/lib/utils/authenticated-fetch'
 import { CommentResponseDto } from './use-fetch-issue'
 
 export interface UserIssueDto {
@@ -36,16 +36,10 @@ export function useUserIssues(): UseUserIssuesReturn {
     setError(null)
 
     try {
-      const accessToken = localStorage.getItem('access-token')
-      if (!accessToken) {
-        throw new Error('No access token found')
-      }
-
       const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api'
-      const response = await authenticatedFetch(`${baseUrl}/issues/my-issues`, {
+      const response = await makeAuthenticatedRequest(`${baseUrl}/issues/my-issues`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
       })
@@ -53,6 +47,7 @@ export function useUserIssues(): UseUserIssuesReturn {
       const data = await response.json()
       setIssues(data)
     } catch (err) {
+      handleAuthenticationError(err as Error)
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch user issues'
       setError(errorMessage)
       console.error('Fetch user issues error:', err)
